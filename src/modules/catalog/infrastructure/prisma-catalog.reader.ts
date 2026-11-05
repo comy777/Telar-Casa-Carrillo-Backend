@@ -1,6 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type { Page, PageRequest } from '../../../shared/application/audit-trail';
+import {
+  type Availability,
+  availabilityOf,
+  availableQuantity,
+  type StockLevel,
+} from '../../../shared/domain/stock-availability';
 import { PrismaClientProvider } from '../../../shared/infrastructure/prisma/prisma-client.provider';
 import type {
   CatalogReader,
@@ -37,6 +43,28 @@ const ORDER_BY: Record<StorefrontSort, Prisma.Sql> = {
 const escapeLike = (value: string) => value.replace(/[\\%_]/g, (char) => `\\${char}`);
 const pesos = (cents: number) => centsToPesos(cents).toFixed(2);
 
+const STOCK = {
+  quantityOnHand: true,
+  quantityReserved: true,
+  lowStockThreshold: true,
+} satisfies Prisma.InventorySelect;
+
+/** Sin fila de inventario la variante está agotada. */
+const availabilityFor = (stock: StockLevel | null): Availability =>
+  availabilityOf(availableQuantity(stock), stock?.lowStockThreshold ?? 0);
+
+const AVAILABILITY_RANK: Record<Availability, number> = {
+  IN_STOCK: 2,
+  LOW_STOCK: 1,
+  OUT_OF_STOCK: 0,
+};
+
+const bestAvailability = (values: Availability[]): Availability =>
+  values.reduce<Availability>(
+    (best, value) => (AVAILABILITY_RANK[value] > AVAILABILITY_RANK[best] ? value : best),
+    'OUT_OF_STOCK',
+  );
+
 const cardSelect = {
   id: true,
   slug: true,
@@ -52,7 +80,7 @@ const cardSelect = {
   variants: {
     where: { isActive: true },
     orderBy: { price: 'asc' },
-    select: { price: true, compareAtPrice: true, currency: true },
+    select: { price: true, compareAtPrice: true, currency: true, inventory: { select: STOCK } },
   },
 } satisfies Prisma.ProductSelect;
 
@@ -72,6 +100,7 @@ function toCard(row: CardRow): ProductCard {
     compareAtPriceCents: cheapest?.compareAtPrice ? decimalToCents(cheapest.compareAtPrice) : null,
     currency: cheapest?.currency ?? 'COP',
     hasMultipleVariants: row.variants.length > 1,
+    availability: bestAvailability(row.variants.map((v) => availabilityFor(v.inventory))),
   };
 }
 
@@ -156,6 +185,12 @@ export class PrismaCatalogReader implements CatalogReader {
         WHERE pm."productId" = p."id" AND lower(m."name") = lower(${query.material}))`);
     }
     if (query.featured) conditions.push(Prisma.sql`p."isFeatured"`);
+    if (query.inStock) {
+      conditions.push(Prisma.sql`EXISTS (
+        SELECT 1 FROM "ProductVariant" sv JOIN "Inventory" i ON i."variantId" = sv."id"
+        WHERE sv."productId" = p."id" AND sv."isActive"
+          AND i."quantityOnHand" - i."quantityReserved" > 0)`);
+    }
 
     const having: Prisma.Sql[] = [];
     if (query.minPriceCents !== undefined) {
@@ -183,7 +218,11 @@ export class PrismaCatalogReader implements CatalogReader {
         categories: { include: { category: true } },
         materials: { include: { material: true } },
         images: { orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }] },
-        variants: { where: { isActive: true }, orderBy: [{ price: 'asc' }, { name: 'asc' }] },
+        variants: {
+          where: { isActive: true },
+          orderBy: [{ price: 'asc' }, { name: 'asc' }],
+          include: { inventory: { select: STOCK } },
+        },
       },
     });
     if (!row) return null;
@@ -230,6 +269,7 @@ export class PrismaCatalogReader implements CatalogReader {
         priceCents: decimalToCents(v.price),
         compareAtPriceCents: v.compareAtPrice ? decimalToCents(v.compareAtPrice) : null,
         currency: v.currency,
+        availability: availabilityFor(v.inventory),
       })),
       updatedAt: row.updatedAt,
     };

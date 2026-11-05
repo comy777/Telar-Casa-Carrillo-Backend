@@ -46,6 +46,7 @@ export class StorefrontController {
       minPriceCents: query.minPrice === undefined ? undefined : pesosToCents(query.minPrice),
       maxPriceCents: query.maxPrice === undefined ? undefined : pesosToCents(query.maxPrice),
       featured: query.featured,
+      inStock: query.inStock,
       sort: query.sort,
     });
     return { ...page, items: page.items.map(toProductCard) };

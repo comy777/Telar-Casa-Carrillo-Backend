@@ -26,3 +26,18 @@ export const CurrentUser = createParamDecorator(
     return user;
   },
 );
+
+export const OPTIONAL_AUTH_KEY = 'auth:optional';
+
+/**
+ * La ruta funciona con o sin sesión (p. ej. el carrito de invitado). Si llega un
+ * access token se valida igual que en las demás rutas; uno inválido da 401
+ * para que el cliente lo renueve en vez de perder el carrito del usuario.
+ */
+export const OptionalAuth = () => SetMetadata(OPTIONAL_AUTH_KEY, true);
+
+/** Usuario autenticado o null (para rutas con @OptionalAuth()). */
+export const MaybeCurrentUser = createParamDecorator(
+  (_data: unknown, context: ExecutionContext): AuthenticatedUser | null =>
+    context.switchToHttp().getRequest<AuthenticatedRequest>().user ?? null,
+);

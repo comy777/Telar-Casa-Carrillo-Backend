@@ -331,13 +331,16 @@ model Inventory {
   variant          ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
 }
 
-// quantity siempre es positiva; el sentido lo da `type`
-// (ADJUSTMENT usa `reason` para explicar si suma o resta).
+// quantity siempre es positiva; el sentido lo da `type`. En ADJUSTMENT (conteo
+// físico) el sentido se ve comparando onHandAfter con el movimiento anterior.
+// onHandAfter y reservedAfter dejan el saldo tras cada movimiento (libro mayor).
 model InventoryMovement {
   id          String                @id @default(uuid()) @db.Uuid
   variantId   String                @db.Uuid
   type        InventoryMovementType
   quantity    Int
+  onHandAfter   Int
+  reservedAfter Int
   reason      String?
   // Origen del movimiento, p. ej. "order", "reservation", "manual".
   referenceType String?
@@ -362,13 +365,17 @@ model StockReservation {
   variant     ProductVariant @relation(fields: [variantId], references: [id], onDelete: Restrict)
   cart        Cart?          @relation(fields: [cartId], references: [id], onDelete: SetNull)
   order       Order?         @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  // Además: índice parcial "reservation_active_expiry" para el proceso que libera las vencidas.
   @@index([variantId, expiresAt, releasedAt])
+  @@index([cartId, releasedAt])
 }
 
-// Debe tener userId o guestKey (CHECK en constraints.sql).
+// Debe tener userId o guestKey (CHECK en constraints.sql). Un carrito por usuario.
+// guestKey guarda el hash SHA-256 de la clave de la cookie, nunca la clave.
+// expiresAt solo se usa en carritos de invitado (se renueva con cada cambio).
 model Cart {
   id        String     @id @default(uuid()) @db.Uuid
-  userId    String?    @db.Uuid
+  userId    String?    @unique @db.Uuid
   guestKey  String?    @unique
   expiresAt DateTime?
   createdAt DateTime   @default(now())
@@ -376,7 +383,7 @@ model Cart {
   user      User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
   items     CartItem[]
   reservations StockReservation[]
-  @@index([userId, updatedAt])
+  @@index([expiresAt])
 }
 
 model CartItem {

@@ -11,6 +11,7 @@ import {
   Min,
 } from 'class-validator';
 import { PaginationQuery } from '../../../shared/presentation/pagination.dto';
+import type { Availability } from '../../../shared/domain/stock-availability';
 import type { StorefrontSort } from '../application/ports';
 import { SLUG_MAX_LENGTH } from '../domain/slug';
 import { TEXT_LIMITS } from '../domain/text';
@@ -18,6 +19,7 @@ import { VariantResponse } from './product.dto';
 import { ToBoolean } from './validators';
 
 const SORTS: StorefrontSort[] = ['newest', 'price_asc', 'price_desc', 'relevance'];
+const AVAILABILITIES: Availability[] = ['IN_STOCK', 'LOW_STOCK', 'OUT_OF_STOCK'];
 
 export class StorefrontProductsQuery extends PaginationQuery {
   @ApiPropertyOptional({
@@ -68,6 +70,12 @@ export class StorefrontProductsQuery extends PaginationQuery {
   @IsBoolean()
   featured?: boolean;
 
+  @ApiPropertyOptional({ description: 'Solo productos con unidades disponibles' })
+  @IsOptional()
+  @ToBoolean()
+  @IsBoolean()
+  inStock?: boolean;
+
   @ApiPropertyOptional({
     enum: SORTS,
     description: 'Por defecto: relevance si hay q, si no newest',
@@ -102,6 +110,8 @@ export class ProductCardResponse {
   @ApiProperty({ nullable: true, type: Number }) compareAtPrice!: number | null;
   @ApiProperty({ example: 'COP' }) currency!: string;
   @ApiProperty({ description: 'true si hay que elegir variante' }) hasMultipleVariants!: boolean;
+  @ApiProperty({ enum: AVAILABILITIES, description: 'La mejor entre sus variantes' })
+  availability!: Availability;
 }
 
 export class ProductCardPage {
@@ -133,6 +143,11 @@ export class CategoryLinkResponse {
   @ApiProperty() slug!: string;
 }
 
+export class StorefrontVariantResponse extends VariantResponse {
+  @ApiProperty({ enum: AVAILABILITIES, description: 'LOW_STOCK = últimas unidades' })
+  availability!: Availability;
+}
+
 export class ProductDetailResponse {
   @ApiProperty() id!: string;
   @ApiProperty() slug!: string;
@@ -148,7 +163,7 @@ export class ProductDetailResponse {
   @ApiProperty({ type: [CategoryLinkResponse] }) categories!: CategoryLinkResponse[];
   @ApiProperty({ type: [String] }) materials!: string[];
   @ApiProperty({ type: [ProductImageResponse] }) images!: ProductImageResponse[];
-  @ApiProperty({ type: [VariantResponse] }) variants!: VariantResponse[];
+  @ApiProperty({ type: [StorefrontVariantResponse] }) variants!: StorefrontVariantResponse[];
   @ApiProperty({ type: SeoResponse }) seo!: SeoResponse;
   @ApiProperty() updatedAt!: Date;
 }

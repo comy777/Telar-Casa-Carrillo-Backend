@@ -1,4 +1,5 @@
 import type { Page, PageRequest } from '../../../shared/application/audit-trail';
+import type { Availability } from '../../../shared/domain/stock-availability';
 import type { Artisan } from '../domain/artisan';
 import type { Category } from '../domain/category';
 import type { Product, ProductStatus } from '../domain/product';
@@ -62,6 +63,8 @@ export interface StorefrontProductQuery extends PageRequest {
   minPriceCents?: number | undefined;
   maxPriceCents?: number | undefined;
   featured?: boolean | undefined;
+  /** Solo productos con alguna variante con unidades disponibles. */
+  inStock?: boolean | undefined;
   sort: StorefrontSort;
 }
 
@@ -89,6 +92,8 @@ export interface ProductCard {
   compareAtPriceCents: number | null;
   currency: string;
   hasMultipleVariants: boolean;
+  /** La mejor disponibilidad entre sus variantes activas. */
+  availability: Availability;
 }
 
 export interface ProductDetailView {
@@ -114,6 +119,7 @@ export interface ProductDetailView {
     priceCents: number;
     compareAtPriceCents: number | null;
     currency: string;
+    availability: Availability;
   }[];
   updatedAt: Date;
 }

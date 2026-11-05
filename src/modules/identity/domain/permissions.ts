@@ -9,6 +9,8 @@ export const PERMISSIONS = {
   AUDIT_READ: 'audit:read',
   CATALOG_READ: 'catalog:read',
   CATALOG_MANAGE: 'catalog:manage',
+  INVENTORY_READ: 'inventory:read',
+  INVENTORY_MANAGE: 'inventory:manage',
 } as const;
 
 export type PermissionKey = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
@@ -20,6 +22,8 @@ export const PERMISSION_DESCRIPTIONS: Record<PermissionKey, string> = {
   'audit:read': 'Ver el registro de auditoría',
   'catalog:read': 'Ver el catálogo completo, incluidos borradores y archivados',
   'catalog:manage': 'Crear y editar productos, categorías y artesanos, y publicar productos',
+  'inventory:read': 'Ver existencias y movimientos de inventario',
+  'inventory:manage': 'Registrar entradas, conteos y umbrales de inventario',
 };
 
 export const ROLES = {

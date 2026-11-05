@@ -87,6 +87,16 @@ export const envSchema = z
       .default('telar-casa-carrillo'),
     MEDIA_LOCAL_DIR: z.string().min(1).default('uploads'),
 
+    // Carrito e inventario
+    // Minutos que el stock queda apartado al iniciar el checkout.
+    CHECKOUT_RESERVATION_MINUTES: z.coerce.number().int().min(5).max(60).default(15),
+    // Días sin cambios tras los que se borra un carrito de invitado.
+    GUEST_CART_TTL_DAYS: z.coerce.number().int().min(1).max(90).default(30),
+    // Procesos programados (liberar reservas, limpiar carritos). Por defecto
+    // activos salvo en pruebas. Con varias instancias pueden correr en todas:
+    // las operaciones son seguras ante ejecuciones simultáneas.
+    JOBS_ENABLED: optional(z.enum(['true', 'false']).transform((value) => value === 'true')),
+
     // Correo. Sin SMTP_HOST (solo fuera de producción) los correos se escriben en el log.
     SMTP_HOST: optional(z.string()),
     SMTP_PORT: optional(z.coerce.number().int().min(1).max(65535)),

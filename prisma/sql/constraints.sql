@@ -73,3 +73,8 @@ CREATE UNIQUE INDEX "product_image_one_primary" ON "ProductImage" ("productId") 
 CREATE INDEX "product_search_idx" ON "Product" USING GIN (
   to_tsvector('spanish', coalesce("name", '') || ' ' || coalesce("description", ''))
 );
+
+-- Agregadas en la migración cart_and_inventory (Fase 4).
+ALTER TABLE "InventoryMovement" ADD CONSTRAINT "inventory_movement_balances_valid"
+  CHECK ("onHandAfter" >= 0 AND "reservedAfter" >= 0 AND "reservedAfter" <= "onHandAfter");
+CREATE INDEX "reservation_active_expiry" ON "StockReservation" ("expiresAt") WHERE "releasedAt" IS NULL;

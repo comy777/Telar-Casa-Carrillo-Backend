@@ -18,7 +18,7 @@
 - [x] Configurar PostgreSQL (Docker) y Prisma 6.
 - [x] Generar y aplicar la primera migración (`20261105161617_init`) incluyendo `prisma/sql/constraints.sql`.
 - [x] Generar `package-lock.json` (versionarlo: la CI usa `npm ci`).
-- [ ] Configurar procesos programados (`@nestjs/schedule` o cola) — se hará junto con la Fase 4, cuando exista el primer trabajo.
+- [x] Configurar procesos programados (`@nestjs/schedule`, Fase 4; `JOBS_ENABLED` los apaga).
 - [x] Publicar OpenAPI desde NestJS (`/api/docs`).
 - [x] Definir manejo de errores (problem+json) y logging (pino con request id y ocultamiento de secretos).
 
@@ -41,14 +41,16 @@
 - [x] Solo lo publicado aparece en la tienda: una categoría o un artesano inactivos se ocultan (y la categoría oculta su rama).
 - [x] Permisos `catalog:read` y `catalog:manage`; todos los cambios quedan en auditoría.
 - [ ] Pendiente: la búsqueda no ignora tildes ("artesania" no encuentra "artesanía"). Se resuelve con la extensión `unaccent` cuando el catálogo lo justifique.
-- [ ] Pendiente para la Fase 4: existencias por variante (la tienda aún no muestra disponibilidad).
+- [x] Disponibilidad por variante en la tienda (Fase 4).
 
 ## Fase 4 — Carrito e inventario
-- Carrito persistente para usuario y carrito invitado.
-- Revalidación del carrito en servidor.
-- Reservas al iniciar el checkout, con vencimiento y control de concurrencia.
-- Proceso programado que libera reservas vencidas.
-- Pruebas de sobreventa y liberación de reservas.
+- [x] Carrito persistente para usuario y para invitado (cookie HttpOnly con clave aleatoria; en la base solo su hash). Al iniciar sesión, el de invitado se incorpora al de la cuenta.
+- [x] Revalidación en servidor en cada lectura: precio actual, producto publicado y unidades disponibles por línea.
+- [x] Inventario por variante con libro de movimientos (saldo tras cada movimiento): entradas, conteos físicos con motivo y umbral de "últimas unidades".
+- [x] Reservas al iniciar el checkout (`POST /cart/reservation`), todo o nada, con vencimiento (`CHECKOUT_RESERVATION_MINUTES`) y actualización condicional en la base para no vender de más. Cambiar el carrito libera la reserva.
+- [x] Procesos programados (`@nestjs/schedule`): liberar reservas vencidas cada minuto y borrar carritos de invitado vencidos cada hora; seguros con varias instancias.
+- [x] Pruebas de sobreventa (8 checkouts por 3 unidades), liberación única con dos procesos simultáneos y todo o nada.
+- [x] La tienda muestra la disponibilidad (`availability`) y filtra con `inStock=true`.
 
 ## Fase 5 — Pedidos y checkout
 - Dirección (con código DANE), método y costo de envío.

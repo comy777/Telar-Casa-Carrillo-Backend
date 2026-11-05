@@ -4,6 +4,7 @@ import { AuthenticationError, ForbiddenError } from '../../../shared/domain/erro
 import {
   type AuthenticatedRequest,
   IS_PUBLIC_KEY,
+  OPTIONAL_AUTH_KEY,
   REQUIRED_PERMISSIONS_KEY,
 } from '../../../shared/presentation/auth.decorators';
 import {
@@ -34,6 +35,12 @@ export class AuthGuard implements CanActivate {
     if (this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, targets)) return true;
 
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
+    if (
+      !request.headers.authorization &&
+      this.reflector.getAllAndOverride<boolean>(OPTIONAL_AUTH_KEY, targets)
+    ) {
+      return true;
+    }
     const [scheme, token] = request.headers.authorization?.split(' ') ?? [];
     if (scheme !== 'Bearer' || !token) {
       throw new AuthenticationError('Falta el token de acceso', 'MISSING_ACCESS_TOKEN');

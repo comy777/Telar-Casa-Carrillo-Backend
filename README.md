@@ -2,7 +2,7 @@
 
 API de la tienda en línea Telar Casa Carrillo: NestJS 11, PostgreSQL 16 y Prisma 6, organizada con Clean Architecture por módulos.
 
-Estado: **Fases 1 (fundaciones), 2 (identidad y administración) y 3 (catálogo)** del [plan de implementación](docs/implementation-plan.md).
+Estado: **Fases 1 (fundaciones), 2 (identidad y administración), 3 (catálogo) y 4 (carrito e inventario)** del [plan de implementación](docs/implementation-plan.md).
 
 ## Requisitos
 - Node.js 22 o superior (ver `.nvmrc`)
@@ -100,6 +100,20 @@ Administración: `/api/v1/admin/products` (con `/:id/status`, `/:id/variants` y 
 | `db:seed` | Sincroniza roles y permisos (idempotente; ejecutar en cada despliegue) |
 | `admin:grant -- <correo> [rol]` | Asigna un rol a un usuario existente |
 | `prisma:validate`, `prisma:generate` | Validar el esquema / regenerar el cliente |
+
+## Carrito e inventario
+| Ruta | Qué hace |
+|---|---|
+| `GET /api/v1/cart` | Carrito con precios y disponibilidad revalidados (`lines[].issues`, `canCheckout`) |
+| `POST /api/v1/cart/items` | Agrega `{ variantId, quantity }` |
+| `PATCH` / `DELETE /api/v1/cart/items/:variantId` | Cambia la cantidad o quita la línea |
+| `DELETE /api/v1/cart` | Vacía el carrito |
+| `POST /api/v1/cart/reservation` | Inicia el checkout: aparta el stock por `CHECKOUT_RESERVATION_MINUTES` |
+| `DELETE /api/v1/cart/reservation` | Abandona el checkout y devuelve el stock |
+
+- Funciona con o sin sesión. Sin sesión, el carrito va en la cookie HttpOnly `tcc_cart`; el frontend debe llamar con `credentials: 'include'`. Al iniciar sesión, el carrito de invitado se incorpora al de la cuenta en la siguiente petición.
+- Agregar al carrito no aparta stock; solo la reserva del checkout lo hace, y cualquier cambio al carrito la libera.
+- Administración: `/api/v1/admin/inventory` (permisos `inventory:read` e `inventory:manage`) con entradas (`/:variantId/receipts`), conteos físicos (`/:variantId/count`), umbral y movimientos.
 
 ## Convenciones ya implementadas
 - **Configuración:** las variables de entorno se validan con Zod al arrancar (`src/shared/config/env.schema.ts`). En producción además se exige SMTP, HTTPS en la tienda y un secreto JWT que no sea el de ejemplo.
