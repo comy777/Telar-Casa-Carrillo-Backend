@@ -7,6 +7,7 @@ import { AuditModule } from './modules/audit/audit.module';
 import { CartModule } from './modules/cart/cart.module';
 import { CatalogModule } from './modules/catalog/catalog.module';
 import { OrderingModule } from './modules/ordering/ordering.module';
+import { PaymentsModule } from './modules/payments/payments.module';
 import { PromotionsModule } from './modules/promotions/promotions.module';
 import { ShippingModule } from './modules/shipping/shipping.module';
 import { HealthModule } from './modules/health/health.module';
@@ -42,6 +43,7 @@ import { PrismaModule } from './shared/infrastructure/prisma/prisma.module';
     ShippingModule,
     PromotionsModule,
     OrderingModule,
+    PaymentsModule,
     HealthModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],

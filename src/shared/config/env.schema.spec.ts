@@ -17,6 +17,11 @@ const production = {
   CLOUDINARY_CLOUD_NAME: 'telar',
   CLOUDINARY_API_KEY: '123456789012345',
   CLOUDINARY_API_SECRET: 'cloudinary-api-secret-value',
+  WOMPI_API_URL: 'https://production.wompi.co/v1',
+  WOMPI_PUBLIC_KEY: 'pub_prod_abc',
+  WOMPI_PRIVATE_KEY: 'prv_prod_abc',
+  WOMPI_EVENTS_SECRET: 'prod_events_abc',
+  WOMPI_INTEGRITY_SECRET: 'prod_integrity_abc',
 };
 
 describe('validateEnv', () => {
@@ -99,5 +104,35 @@ describe('validateEnv: imágenes', () => {
       MEDIA_LOCAL_DIR: 'uploads',
       API_PUBLIC_URL: 'http://localhost:3001',
     });
+  });
+});
+
+describe('validateEnv: Wompi', () => {
+  const sandbox = {
+    ...base,
+    WOMPI_PUBLIC_KEY: 'pub_test_abc',
+    WOMPI_PRIVATE_KEY: 'prv_test_abc',
+    WOMPI_EVENTS_SECRET: 'test_events_abc',
+    WOMPI_INTEGRITY_SECRET: 'test_integrity_abc',
+  };
+
+  it('acepta llaves de sandbox con la URL de sandbox', () => {
+    expect(validateEnv(sandbox).WOMPI_API_URL).toBe('https://sandbox.wompi.co/v1');
+  });
+
+  it('exige las cuatro llaves juntas', () => {
+    expect(() => validateEnv({ ...sandbox, WOMPI_EVENTS_SECRET: '' })).toThrow(
+      /WOMPI_EVENTS_SECRET/,
+    );
+  });
+
+  it('rechaza llaves de producción con la URL de sandbox', () => {
+    expect(() => validateEnv({ ...sandbox, WOMPI_PRIVATE_KEY: 'prv_prod_abc' })).toThrow(
+      /WOMPI_PRIVATE_KEY/,
+    );
+  });
+
+  it('en producción exige Wompi', () => {
+    expect(() => validateEnv({ ...production, WOMPI_PUBLIC_KEY: '' })).toThrow(/WOMPI_PUBLIC_KEY/);
   });
 });

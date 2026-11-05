@@ -2,7 +2,7 @@
 
 API de la tienda en línea Telar Casa Carrillo: NestJS 11, PostgreSQL 16 y Prisma 6, organizada con Clean Architecture por módulos.
 
-Estado: **Fases 1 (fundaciones), 2 (identidad y administración), 3 (catálogo), 4 (carrito e inventario) y 5 (pedidos y checkout)** del [plan de implementación](docs/implementation-plan.md).
+Estado: **Fases 1 (fundaciones), 2 (identidad y administración), 3 (catálogo), 4 (carrito e inventario), 5 (pedidos y checkout) y 6 (pagos con Wompi)** del [plan de implementación](docs/implementation-plan.md).
 
 ## Requisitos
 - Node.js 22 o superior (ver `.nvmrc`)
@@ -128,6 +128,16 @@ Administración: `/api/v1/admin/products` (con `/:id/status`, `/:id/variants` y 
 - Los precios incluyen IVA; el pedido lo desglosa por línea. El servidor calcula todo: el navegador solo envía qué compra y a dónde.
 - Si el pedido no se paga antes de `paymentDueAt` (`ORDER_PAYMENT_MINUTES`), se cancela solo y el stock vuelve.
 - Administración: `/api/v1/admin/orders` (avanzar estados, registrar factura), `/admin/coupons` y `/admin/shipping-methods`. La factura electrónica se registra a mano hasta integrar un proveedor tecnológico.
+
+## Pagos (Wompi)
+1. Crear el pedido (`POST /api/v1/checkout/orders`).
+2. `POST /api/v1/orders/:numero/payments` (invitados envían `{ token }`) devuelve `checkoutUrl` (Web Checkout) y `widget` (parámetros del Widget, con la firma de integridad).
+3. Wompi devuelve al cliente a `STOREFRONT_URL/pedido/:numero/pago?id=<transacción>`. El storefront llama a `POST /api/v1/orders/:numero/payments/confirm` con `{ transactionId, token }`; la API consulta la transacción a Wompi.
+4. En paralelo, Wompi envía el evento firmado a `POST /api/v1/payments/webhooks/wompi` (configurar esta URL en el panel de Wompi). El pedido pasa a `PAID` con el evento o con la consulta, nunca con lo que diga el navegador.
+
+- Conciliación cada 5 minutos para pagos pendientes; un pedido con un pago en curso no vence.
+- Administración: `/api/v1/admin/payments` (`needsReview=true` lista los que requieren reembolso), `POST /admin/payments/:id/refunds` (total o parcial, con encabezado `Idempotency-Key`) y `PATCH /admin/refunds/:id` para confirmar los que quedan en curso.
+- Sin llaves de Wompi (solo fuera de producción) los endpoints de pago responden 503 `PAYMENTS_NOT_CONFIGURED`.
 
 ## Convenciones ya implementadas
 - **Configuración:** las variables de entorno se validan con Zod al arrancar (`src/shared/config/env.schema.ts`). En producción además se exige SMTP, HTTPS en la tienda y un secreto JWT que no sea el de ejemplo.

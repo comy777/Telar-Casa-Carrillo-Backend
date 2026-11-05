@@ -3,7 +3,7 @@
  * a respuestas (ver ProblemDetailsFilter).
  */
 export type DomainErrorKind =
-  'NOT_FOUND' | 'CONFLICT' | 'BUSINESS_RULE' | 'UNAUTHENTICATED' | 'FORBIDDEN';
+  'NOT_FOUND' | 'CONFLICT' | 'BUSINESS_RULE' | 'UNAUTHENTICATED' | 'FORBIDDEN' | 'UNAVAILABLE';
 
 export abstract class DomainError extends Error {
   abstract readonly kind: DomainErrorKind;
@@ -63,5 +63,14 @@ export class BusinessRuleViolation extends DomainError {
 
   constructor(message: string, code: string, details?: Record<string, unknown>) {
     super(message, code, details);
+  }
+}
+
+/** Un servicio externo necesario (p. ej. la pasarela de pagos) no está disponible. */
+export class ServiceUnavailableError extends DomainError {
+  override readonly kind = 'UNAVAILABLE' as const;
+
+  constructor(message: string, code: string) {
+    super(message, code);
   }
 }

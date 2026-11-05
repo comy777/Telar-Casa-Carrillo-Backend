@@ -103,6 +103,19 @@ export const envSchema = z
     // IVA incluido en el costo de envío (confirmar con el contador).
     SHIPPING_TAX_RATE: z.coerce.number().min(0).max(1).default(0.19),
 
+    // Pagos (Wompi). Sin llaves (solo fuera de producción) los pagos quedan desactivados.
+    PAYMENT_PROVIDER: z.enum(['wompi']).default('wompi'),
+    WOMPI_API_URL: z
+      .string()
+      .url()
+      .default('https://sandbox.wompi.co/v1')
+      .transform((url) => url.replace(/\/+$/, '')),
+    WOMPI_CHECKOUT_URL: z.string().url().default('https://checkout.wompi.co/p/'),
+    WOMPI_PUBLIC_KEY: optional(z.string()),
+    WOMPI_PRIVATE_KEY: optional(z.string()),
+    WOMPI_EVENTS_SECRET: optional(z.string()),
+    WOMPI_INTEGRITY_SECRET: optional(z.string()),
+
     // Procesos programados (liberar reservas, limpiar carritos). Por defecto
     // activos salvo en pruebas. Con varias instancias pueden correr en todas:
     // las operaciones son seguras ante ejecuciones simultáneas.
@@ -127,6 +140,38 @@ export const envSchema = z
       require(Boolean(
         env.CLOUDINARY_API_SECRET,
       ), 'CLOUDINARY_API_SECRET', 'Falta el secreto de Cloudinary');
+    }
+
+    // Wompi: las cuatro llaves van juntas y deben ser del mismo ambiente que la URL.
+    const wompi = {
+      WOMPI_PUBLIC_KEY: env.WOMPI_PUBLIC_KEY,
+      WOMPI_PRIVATE_KEY: env.WOMPI_PRIVATE_KEY,
+      WOMPI_EVENTS_SECRET: env.WOMPI_EVENTS_SECRET,
+      WOMPI_INTEGRITY_SECRET: env.WOMPI_INTEGRITY_SECRET,
+    };
+    const configured = Object.values(wompi).some(Boolean);
+    if (configured || env.NODE_ENV === 'production') {
+      for (const [key, value] of Object.entries(wompi)) {
+        require(Boolean(value), key, 'Faltan llaves de Wompi (se configuran las cuatro juntas)');
+      }
+      const sandbox = env.WOMPI_API_URL.includes('sandbox');
+      const prefixes: [string, string | undefined, string, string][] = [
+        ['WOMPI_PUBLIC_KEY', env.WOMPI_PUBLIC_KEY, 'pub_test_', 'pub_prod_'],
+        ['WOMPI_PRIVATE_KEY', env.WOMPI_PRIVATE_KEY, 'prv_test_', 'prv_prod_'],
+        ['WOMPI_EVENTS_SECRET', env.WOMPI_EVENTS_SECRET, 'test_events_', 'prod_events_'],
+        [
+          'WOMPI_INTEGRITY_SECRET',
+          env.WOMPI_INTEGRITY_SECRET,
+          'test_integrity_',
+          'prod_integrity_',
+        ],
+      ];
+      for (const [key, value, test, prod] of prefixes) {
+        if (!value) continue;
+        require(value.startsWith(
+          sandbox ? test : prod,
+        ), key, `Con ${env.WOMPI_API_URL} la llave debe empezar por ${sandbox ? test : prod}`);
+      }
     }
 
     if (env.NODE_ENV !== 'production') return;

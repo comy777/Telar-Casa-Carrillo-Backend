@@ -30,6 +30,7 @@ const DOMAIN_STATUS: Record<DomainErrorKind, number> = {
   BUSINESS_RULE: HttpStatus.UNPROCESSABLE_ENTITY,
   UNAUTHENTICATED: HttpStatus.UNAUTHORIZED,
   FORBIDDEN: HttpStatus.FORBIDDEN,
+  UNAVAILABLE: HttpStatus.SERVICE_UNAVAILABLE,
 };
 
 const TITLES: Partial<Record<number, string>> = {

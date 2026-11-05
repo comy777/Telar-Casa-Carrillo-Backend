@@ -11,7 +11,9 @@ import {
   type ImageUpload,
   type StoredImage,
 } from '../../src/shared/application/image-storage';
+import { PAYMENT_GATEWAY } from '../../src/modules/payments/application/ports';
 import { PrismaService } from '../../src/shared/infrastructure/prisma/prisma.service';
+import { FakeWompi } from './fake-wompi';
 
 /** Guarda los correos en memoria para leer los enlaces en las pruebas. */
 export class InMemoryEmailSender implements EmailSender {
@@ -66,18 +68,23 @@ export interface TestApp {
   prisma: PrismaClient;
   emails: InMemoryEmailSender;
   images: InMemoryImageStorage;
-  /** Borra usuarios y catálogo (conserva roles y permisos). */
+  /** API de Wompi en memoria (el adaptador y las firmas son los reales). */
+  wompi: FakeWompi;
+  /** Borra todos los datos (conserva roles y permisos). */
   reset(): Promise<void>;
 }
 
 export async function createTestApp(): Promise<TestApp> {
   const emails = new InMemoryEmailSender();
   const images = new InMemoryImageStorage();
+  const wompi = new FakeWompi();
   const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
     .overrideProvider(EMAIL_SENDER)
     .useValue(emails)
     .overrideProvider(IMAGE_STORAGE)
     .useValue(images)
+    .overrideProvider(PAYMENT_GATEWAY)
+    .useValue(wompi.gateway)
     .compile();
 
   const app = moduleRef.createNestApplication<NestExpressApplication>({ bufferLogs: true });
@@ -90,9 +97,11 @@ export async function createTestApp(): Promise<TestApp> {
     prisma,
     emails,
     images,
+    wompi,
     reset: async () => {
       await prisma.$executeRawUnsafe(
-        `TRUNCATE "AuditLog", "RefreshToken", "UserToken", "UserRole", "User",
+        `TRUNCATE "WebhookEvent", "PaymentTransaction", "Refund", "Payment",
+          "AuditLog", "RefreshToken", "UserToken", "UserRole", "User",
           "CouponRedemption", "OrderStatusHistory", "OrderItem", "Order", "Coupon",
           "ShippingMethod", "Address",
           "StockReservation", "CartItem", "Cart", "InventoryMovement", "Inventory",
@@ -101,6 +110,7 @@ export async function createTestApp(): Promise<TestApp> {
       );
       emails.clear();
       images.clear();
+      wompi.clear();
     },
   };
 }

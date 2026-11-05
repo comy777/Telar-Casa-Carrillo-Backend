@@ -53,6 +53,6 @@ import {
     OrderAdministration,
     OrderExpiryJob,
   ],
-  exports: [OrderLifecycle, OrderExpiryJob],
+  exports: [OrderLifecycle, OrderExpiryJob, CustomerOrders],
 })
 export class OrderingModule {}

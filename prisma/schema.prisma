@@ -531,7 +531,12 @@ model Payment {
   status            PaymentStatus @default(PENDING)
   amount            Decimal       @db.Decimal(12, 2)
   currency          String        @default("COP") @db.VarChar(3)
+  // Referencia enviada a la pasarela (Wompi: "reference"); única por intento de pago.
   idempotencyKey    String        @unique
+  paymentMethodType String?
+  // Motivo por el que un administrador debe revisar el pago (p. ej. pago tardío
+  // de un pedido ya cancelado, monto distinto, sin stock): requiere reembolso.
+  reviewReason      String?
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
   order             Order         @relation(fields: [orderId], references: [id], onDelete: Restrict)
@@ -539,6 +544,7 @@ model Payment {
   refunds           Refund[]
   webhookEvents     WebhookEvent[]
   @@index([orderId, createdAt])
+  @@index([status, updatedAt])
   @@unique([provider, providerReference])
 }
 
@@ -585,6 +591,8 @@ model Refund {
   status            RefundStatus @default(PENDING)
   amount            Decimal      @db.Decimal(12, 2)
   reason            String?
+  // Respuesta de la pasarela cuando el reembolso falla.
+  failureReason     String?
   idempotencyKey    String       @unique
   // Administrador que solicitó el reembolso.
   requestedById     String?      @db.Uuid

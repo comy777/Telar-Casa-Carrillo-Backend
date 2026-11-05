@@ -72,11 +72,21 @@
 - [ ] Pendiente: el adaptador del proveedor tecnológico de facturación, cuando se contrate (Fase 0).
 
 ## Fase 6 — Pagos
-- Integrar primero sandbox de un proveedor.
-- Crear sesión/orden de pago desde backend (incluida la firma de integridad de Wompi).
-- Guardar cada webhook en `WebhookEvent` y verificar su firma antes de procesarlo.
-- Idempotencia, reconciliación periódica y reembolsos totales y parciales.
-- Nunca marcar pagado desde una respuesta del navegador.
+- [x] Wompi (Colombia) por su API REST, verificado contra docs.wompi.co. Sandbox por defecto; las llaves se validan contra el ambiente de la URL.
+- [x] El pago se inicia desde el backend (`POST /orders/:numero/payments`): Web Checkout y Widget con la firma de integridad (incluye la expiración igual al plazo de pago del pedido).
+- [x] Cada evento se guarda en `WebhookEvent` antes de procesarlo, con su firma verificada (checksum SHA-256 de `signature.properties` + `timestamp` + secreto).
+- [x] Firma inválida: el evento se guarda y se responde 401. Un fallo al procesar responde 500 para que Wompi reintente.
+- [x] Idempotencia: el mismo evento no se procesa dos veces, y los estados del pago solo avanzan.
+- [x] Conciliación cada 5 minutos de los pagos pendientes, consultando la transacción con la llave privada.
+- [x] Un pedido con un pago en curso (p. ej. PSE) no se cancela al vencer.
+- [x] Reembolsos totales y parciales por la API de Wompi, con `Idempotency-Key`:
+  - La suma nunca supera lo pagado.
+  - El reembolso total cancela el pedido, o lo deja `REFUNDED` si ya se envió, y puede devolver el stock.
+  - Los que quedan en curso se confirman a mano.
+- [x] Nunca se marca pagado desde el navegador: al volver de la pasarela (`/payments/confirm`) se consulta la transacción a Wompi.
+- [x] Revisión de pagos anómalos (`needsReview`): pago tardío de un pedido vencido, monto distinto, pago duplicado y falta de stock.
+- [ ] Pendiente: probar en el sandbox real de Wompi con las llaves `pub_test_`/`prv_test_` y configurar la URL de eventos en el panel de Wompi. Las pruebas automáticas usan el adaptador real contra una API simulada.
+- [ ] Pendiente si se requiere: Mercado Pago (las variables siguen en `.env.example`, pero no hay adaptador).
 
 ## Fase 7 — Experiencia y operación
 - Seguimiento de pedidos.
