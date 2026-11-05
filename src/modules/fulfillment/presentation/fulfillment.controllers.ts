@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Header,
+  Headers,
   Param,
   ParseUUIDPipe,
   Post,
@@ -122,8 +123,11 @@ export class TrackingController {
   async track(
     @MaybeCurrentUser() user: AuthenticatedUser | null,
     @Param('orderNumber') orderNumber: string,
-    @Query('token') token: string | undefined,
+    @Query('token') queryToken: string | undefined,
+    @Headers('x-order-token') headerToken: string | undefined,
   ): Promise<TrackingResponse> {
+    // El encabezado X-Order-Token evita que el token quede en historiales y logs.
+    const token = headerToken ?? queryToken;
     const { order, shipments } = await this.fulfillment.trackingFor(
       orderNumber,
       user?.id ?? null,

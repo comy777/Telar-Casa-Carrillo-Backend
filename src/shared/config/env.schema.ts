@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { z } from 'zod';
 
 /** En .env una variable vacía (`SMTP_HOST=`) cuenta como no definida. */
@@ -54,6 +55,10 @@ export const envSchema = z
         'Debe ser una URL de PostgreSQL',
       ),
     CORS_ORIGINS: commaSeparatedOrigins,
+    // Proxies de confianza delante de la API (balanceador, CDN). Con 0 se usa la
+    // IP de la conexión; detrás de un proxy hay que indicar cuántos saltos hay,
+    // o el límite de peticiones y la auditoría verán siempre la IP del proxy.
+    TRUST_PROXY: z.coerce.number().int().min(0).max(5).default(0),
     LOG_LEVEL: z
       .enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'])
       .default('info'),
@@ -213,9 +218,29 @@ export const envSchema = z
 
 export type Env = z.infer<typeof envSchema>;
 
+/**
+ * Secretos montados como archivos (Docker/Kubernetes secrets, gestores de
+ * secretos): `JWT_ACCESS_SECRET_FILE=/run/secrets/jwt` carga JWT_ACCESS_SECRET
+ * desde ese archivo si la variable no está definida directamente.
+ */
+export function resolveFileSecrets(config: Record<string, unknown>): Record<string, unknown> {
+  const resolved = { ...config };
+  for (const [key, path] of Object.entries(config)) {
+    if (!key.endsWith('_FILE') || typeof path !== 'string' || !path) continue;
+    const target = key.slice(0, -'_FILE'.length);
+    if (resolved[target] !== undefined && resolved[target] !== '') continue;
+    try {
+      resolved[target] = readFileSync(path, 'utf8').trim();
+    } catch {
+      throw new Error(`Variables de entorno inválidas:\n- ${key}: no se pudo leer ${path}`);
+    }
+  }
+  return resolved;
+}
+
 /** Usado por ConfigModule: falla al arrancar si falta o sobra algo. */
 export function validateEnv(config: Record<string, unknown>): Env {
-  const result = envSchema.safeParse(config);
+  const result = envSchema.safeParse(resolveFileSecrets(config));
   if (!result.success) {
     const issues = result.error.issues
       .map((issue) => `- ${issue.path.join('.')}: ${issue.message}`)

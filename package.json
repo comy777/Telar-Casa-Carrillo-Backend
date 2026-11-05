@@ -30,7 +30,10 @@
     "db:studio": "prisma studio",
     "postinstall": "prisma generate",
     "db:seed": "prisma db seed",
-    "admin:grant": "tsx scripts/grant-role.ts"
+    "admin:grant": "tsx scripts/grant-role.ts",
+    "release": "prisma migrate deploy && prisma db seed",
+    "db:backup": "tsx scripts/db-backup.ts",
+    "db:restore-check": "tsx scripts/db-restore-check.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.0",
@@ -50,8 +53,10 @@
     "nestjs-pino": "^4.1.0",
     "nodemailer": "^7.0.13",
     "pino-http": "^10.3.0",
+    "prisma": "^6.19.3",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
+    "tsx": "^4.23.15",
     "zod": "^3.24.0"
   },
   "devDependencies": {
@@ -72,10 +77,8 @@
     "jest": "^29.7.0",
     "pino-pretty": "^13.0.0",
     "prettier": "^3.4.0",
-    "prisma": "^6.0.0",
     "supertest": "^7.0.0",
     "ts-jest": "^29.2.5",
-    "tsx": "^4.23.15",
     "typescript": "~5.7.2",
     "typescript-eslint": "^8.18.0"
   },

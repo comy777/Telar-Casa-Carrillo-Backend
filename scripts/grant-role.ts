@@ -14,7 +14,10 @@ async function main(): Promise<void> {
   const email = rawEmail.trim().toLowerCase();
   const prisma = new PrismaClient();
   try {
-    const user = await prisma.user.findUnique({ where: { email }, select: { id: true, status: true } });
+    const user = await prisma.user.findUnique({
+      where: { email },
+      select: { id: true, status: true },
+    });
     if (!user) throw new Error(`No existe un usuario con el correo ${email}`);
     const role = await prisma.role.findUnique({ where: { name: roleName }, select: { id: true } });
     if (!role) throw new Error(`No existe el rol "${roleName}". ¿Ejecutaste npm run db:seed?`);
@@ -37,7 +40,9 @@ async function main(): Promise<void> {
     ]);
     console.log(`Rol "${roleName}" asignado a ${email}.`);
     if (user.status !== 'ACTIVE') {
-      console.warn(`Atención: la cuenta está en estado ${user.status}; no podrá iniciar sesión hasta estar activa.`);
+      console.warn(
+        `Atención: la cuenta está en estado ${user.status}; no podrá iniciar sesión hasta estar activa.`,
+      );
     }
   } finally {
     await prisma.$disconnect();

@@ -21,7 +21,15 @@ export function configureApp(app: NestExpressApplication): void {
   const config = app.get<ConfigService<Env, true>>(ConfigService);
 
   app.useLogger(app.get(Logger));
+  const proxies = config.get('TRUST_PROXY', { infer: true });
+  if (proxies > 0) app.set('trust proxy', proxies);
   app.use(helmet());
+  // Por defecto ninguna respuesta se guarda en cachés (datos personales, carrito,
+  // pedidos). Las rutas públicas del catálogo lo cambian con @Header('Cache-Control').
+  app.use((_req: unknown, res: ServerResponse, next: () => void) => {
+    res.setHeader('Cache-Control', 'no-store');
+    next();
+  });
   app.use(cookieParser());
   app.enableCors({ origin: config.get('CORS_ORIGINS', { infer: true }), credentials: true });
   app.useBodyParser('json', { limit: BODY_LIMIT });

@@ -47,19 +47,20 @@ Cada módulo de `src/modules/` se divide en capas: `domain/`, `application/`, `i
 Telar-Casa-Carrillo-Backend/
 ├── src/
 │   ├── modules/
-│   │   ├── health/                 # implementado (Fase 1)
-│   │   ├── audit/                  # implementado (Fase 2)
-│   │   ├── identity/               # implementado (Fase 2)
-│   │   ├── catalog/                # implementado (Fase 3), incluye artesanos
-│   │   ├── inventory/
-│   │   ├── cart/
-│   │   ├── checkout/
-│   │   ├── orders/
-│   │   ├── payments/
-│   │   ├── shipping/
-│   │   ├── promotions/
-│   │   ├── content/
-│   │   └── reporting/
+│   │   ├── health/                 # salud (Fase 1)
+│   │   ├── audit/                  # registro de auditoría (Fase 2)
+│   │   ├── identity/               # cuentas, sesiones, roles (Fase 2)
+│   │   ├── catalog/                # productos, categorías, artesanos (Fase 3)
+│   │   ├── inventory/              # existencias, movimientos, reservas (Fase 4)
+│   │   ├── cart/                   # carrito de usuario e invitado (Fase 4)
+│   │   ├── shipping/               # direcciones y métodos de envío (Fase 5)
+│   │   ├── promotions/             # cupones (Fase 5)
+│   │   ├── ordering/               # checkout, pedidos, factura (Fase 5)
+│   │   ├── payments/               # Wompi, eventos, conciliación, reembolsos (Fase 6)
+│   │   ├── fulfillment/            # despachos y seguimiento (Fase 7)
+│   │   ├── notifications/          # correos y alertas (Fase 7)
+│   │   ├── reports/                # métricas, CSV, estado del sistema (Fase 7)
+│   │   └── privacy/                # Ley 1581: acceso y supresión (Fase 8)
 │   ├── shared/
 │   │   ├── config/                 # validación de variables de entorno
 │   │   ├── domain/                 # errores de dominio
@@ -115,21 +116,22 @@ Los nombres coinciden con las carpetas de `src/modules/`.
 
 - `identity` — Identity & Access: usuarios, roles, permisos, sesiones y tokens.
 - `catalog` — Catalog: productos, variantes, categorías, materiales e imágenes, y Artisan (perfil e historia del creador). Los artesanos viven en el mismo módulo porque solo existen para dar contexto a los productos y se administran juntos; el agregado `Artisan` sigue siendo independiente de `Product` (se referencian por id).
-- `inventory` — Inventory: existencias, movimientos y reservas.
-- `cart` — Cart: carrito y líneas.
-- `checkout` — orquesta Cart, Inventory, Promotions, Ordering y Payments (solo casos de uso, sin agregado propio).
-- `orders` — Ordering: pedidos, líneas, transiciones de estado y facturación electrónica.
-- `payments` — Payments: intentos, webhooks, eventos y reembolsos.
-- `shipping` — Shipping: direcciones, métodos y envíos.
-- `promotions` — Promotions: cupones, reglas y usos.
-- `content` — Content: páginas, banners, testimonios, preguntas frecuentes y newsletter.
-- `reporting` — solo lectura: métricas y exportaciones.
+- `inventory` — Inventory: existencias, movimientos (con saldo) y reservas. Expone `StockReservations` a otros módulos.
+- `cart` — Cart: carrito y líneas (usuario o invitado), revalidado en cada lectura.
+- `shipping` — direcciones (código DANE) y métodos de envío.
+- `promotions` — Promotions: cupones y sus usos.
+- `ordering` — Ordering: checkout (orquesta carrito, inventario, cupones y envío), pedidos, transiciones de estado y factura electrónica (puerto `ElectronicInvoiceIssuer`).
+- `payments` — Payments: intentos de pago, eventos de la pasarela, conciliación y reembolsos.
+- `fulfillment` — despachos y eventos de seguimiento; mueven el estado del pedido.
+- `notifications` — correos al cliente y alertas a la tienda a partir de eventos de dominio.
+- `reports` — solo lectura: métricas, exportaciones y estado del sistema.
+- `privacy` — derechos del titular de los datos.
+- Pendiente: `content` (páginas, banners, testimonios, preguntas frecuentes y newsletter); las tablas existen pero no hay API.
+
+Los módulos se comunican por servicios de aplicación exportados (nunca por repositorios ajenos) y por eventos de dominio (`DOMAIN_EVENTS`), que se entregan después del commit de la transacción.
 
 ## Procesos programados
-- Liberar reservas de inventario vencidas (`StockReservation.expiresAt`), cada minuto.
-- Cancelar pedidos `PENDING_PAYMENT` cuyo pago expiró, consultando antes al proveedor.
-- Reprocesar `WebhookEvent` con `processedAt` nulo y conciliar pagos pendientes con la API del proveedor.
-- Limpiar carritos de invitado y tokens vencidos.
+- Ver la tabla de procesos de `operations.md`: reservas vencidas y pedidos vencidos (cada minuto), conciliación de pagos (cada 5 minutos) y carritos de invitado vencidos (cada hora).
 
 Usar `@nestjs/schedule` en una sola instancia o una cola (p. ej. BullMQ) si hay varias réplicas, para no ejecutar dos veces el mismo trabajo.
 

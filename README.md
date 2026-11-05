@@ -2,7 +2,7 @@
 
 API de la tienda en línea Telar Casa Carrillo: NestJS 11, PostgreSQL 16 y Prisma 6, organizada con Clean Architecture por módulos.
 
-Estado: **Fases 1 (fundaciones), 2 (identidad y administración), 3 (catálogo), 4 (carrito e inventario), 5 (pedidos y checkout), 6 (pagos con Wompi) y 7 (seguimiento, notificaciones, métricas y reportes)** del [plan de implementación](docs/implementation-plan.md).
+Estado: **Fases 1 a 8 implementadas** (fundaciones, identidad, catálogo, carrito e inventario, pedidos, pagos con Wompi, operación y preparación para producción) del [plan de implementación](docs/implementation-plan.md).
 
 ## Requisitos
 - Node.js 22 o superior (ver `.nvmrc`)
@@ -100,6 +100,9 @@ Administración: `/api/v1/admin/products` (con `/:id/status`, `/:id/variants` y 
 | `db:seed` | Sincroniza roles y permisos (idempotente; ejecutar en cada despliegue) |
 | `admin:grant -- <correo> [rol]` | Asigna un rol a un usuario existente |
 | `prisma:validate`, `prisma:generate` | Validar el esquema / regenerar el cliente |
+| `release` | Migraciones pendientes y roles (fase de release de cada despliegue) |
+| `db:backup -- [carpeta]` | Respaldo con pg_dump (formato custom) |
+| `db:restore-check -- [archivo]` | Restaura en una base temporal y compara filas |
 
 ## Carrito e inventario
 | Ruta | Qué hace |
@@ -151,6 +154,15 @@ Administración: `/api/v1/admin/products` (con `/:id/status`, `/:id/variants` y 
 
 Los correos al cliente (pedido recibido, pago, envío, entrega, cancelación, devolución) y las alertas a `ADMIN_ALERT_EMAILS` salen solos después de cada cambio confirmado.
 
+## Privacidad (Ley 1581)
+- `GET /api/v1/account/data`: el titular descarga todos sus datos.
+- `DELETE /api/v1/account` con `{ password }`: borra direcciones, sesiones y carrito, y anonimiza la cuenta. Los pedidos se conservan desligados de la cuenta, porque son soporte contable. No se puede con pedidos en curso.
+
+## Producción
+- `Dockerfile` (usuario sin privilegios, `HEALTHCHECK`). Antes de cada despliegue: `npm run release` (migraciones y roles).
+- `npm run db:backup` y `npm run db:restore-check` (simulacro de restauración automatizado).
+- Guías: [despliegue](docs/deployment.md), [operación](docs/operations.md), [seguridad](docs/security.md) y [lista de salida a producción](docs/go-live-checklist.md).
+
 ## Convenciones ya implementadas
 - **Configuración:** las variables de entorno se validan con Zod al arrancar (`src/shared/config/env.schema.ts`). En producción además se exige SMTP, HTTPS en la tienda y un secreto JWT que no sea el de ejemplo.
 - **Errores:** todas las respuestas de error usan `application/problem+json` (RFC 9457) con un `code` estable. Los errores de dominio se traducen a 401, 403, 404, 409 y 422. Los errores inesperados devuelven 500 sin detalles internos.
@@ -166,3 +178,7 @@ Los correos al cliente (pedido recibido, pago, envío, entrega, cancelación, de
 - [Arquitectura](docs/architecture.md)
 - [Modelo de dominio](docs/domain-model.md)
 - [Plan de implementación](docs/implementation-plan.md)
+- [Despliegue](docs/deployment.md)
+- [Operación](docs/operations.md)
+- [Seguridad y privacidad](docs/security.md)
+- [Lista de salida a producción](docs/go-live-checklist.md)

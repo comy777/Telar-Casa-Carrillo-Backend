@@ -112,5 +112,7 @@ import { SECURE_COOKIES } from './presentation/refresh-cookie';
     // Toda la API exige autenticación salvo las rutas @Public().
     { provide: APP_GUARD, useClass: AuthGuard },
   ],
+  // Para el módulo de privacidad (confirmar la contraseña antes de borrar la cuenta).
+  exports: [PASSWORD_HASHER, USER_REPOSITORY, SECURE_COOKIES],
 })
 export class IdentityModule {}

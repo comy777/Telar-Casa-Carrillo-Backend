@@ -1,3 +1,6 @@
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { validateEnv } from './env.schema';
 
 const base = {
@@ -134,5 +137,30 @@ describe('validateEnv: Wompi', () => {
 
   it('en producción exige Wompi', () => {
     expect(() => validateEnv({ ...production, WOMPI_PUBLIC_KEY: '' })).toThrow(/WOMPI_PUBLIC_KEY/);
+  });
+});
+
+describe('validateEnv: secretos en archivos', () => {
+  it('lee VARIABLE_FILE cuando VARIABLE no está definida', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'telar-env-'));
+    const file = join(dir, 'jwt');
+    writeFileSync(file, 'a-secret-from-a-mounted-file-32-chars!!\n');
+    try {
+      const env = validateEnv({
+        ...base,
+        JWT_ACCESS_SECRET: undefined,
+        JWT_ACCESS_SECRET_FILE: file,
+      });
+      expect(env.JWT_ACCESS_SECRET).toBe('a-secret-from-a-mounted-file-32-chars!!');
+      expect(() => validateEnv({ ...base, SMTP_PASSWORD_FILE: join(dir, 'no-existe') })).toThrow(
+        /SMTP_PASSWORD_FILE/,
+      );
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('TRUST_PROXY por defecto es 0', () => {
+    expect(validateEnv(base).TRUST_PROXY).toBe(0);
   });
 });

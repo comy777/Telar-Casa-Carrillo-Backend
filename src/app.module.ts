@@ -10,6 +10,7 @@ import { OrderingModule } from './modules/ordering/ordering.module';
 import { FulfillmentModule } from './modules/fulfillment/fulfillment.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { PaymentsModule } from './modules/payments/payments.module';
+import { PrivacyModule } from './modules/privacy/privacy.module';
 import { ReportsModule } from './modules/reports/reports.module';
 import { PromotionsModule } from './modules/promotions/promotions.module';
 import { ShippingModule } from './modules/shipping/shipping.module';
@@ -50,6 +51,7 @@ import { PrismaModule } from './shared/infrastructure/prisma/prisma.module';
     FulfillmentModule,
     NotificationsModule,
     ReportsModule,
+    PrivacyModule,
     HealthModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],

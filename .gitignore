@@ -22,3 +22,6 @@ Thumbs.db
 
 # Imágenes subidas en desarrollo (MEDIA_LOCAL_DIR)
 uploads/
+
+# Respaldos locales de la base (npm run db:backup)
+backups/

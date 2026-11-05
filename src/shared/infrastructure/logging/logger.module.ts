@@ -6,6 +6,12 @@ import type { Env } from '../../config/env.schema';
 
 const REQUEST_ID_PATTERN = /^[\w-]{1,64}$/;
 
+/** Parámetros de la URL que llevan secretos (p. ej. el token del pedido de un invitado). */
+const SECRET_QUERY_PARAMS = /([?&](?:token|access_token)=)[^&#]*/gi;
+
+export const redactUrl = (url: string | undefined): string | undefined =>
+  url?.replace(SECRET_QUERY_PARAMS, '$1[REDACTED]');
+
 /** Rutas que nunca deben aparecer en los logs. */
 const REDACTED_PATHS = [
   'req.headers.authorization',
@@ -17,6 +23,10 @@ const REDACTED_PATHS = [
   '*.accessToken',
   '*.refreshToken',
   '*.secret',
+  'req.headers["x-order-token"]',
+  'req.query.token',
+  'req.headers["idempotency-key"]',
+  'req.headers["x-event-checksum"]',
 ];
 
 @Module({
@@ -41,6 +51,9 @@ const REDACTED_PATHS = [
               return id;
             },
             redact: { paths: REDACTED_PATHS, censor: '[REDACTED]' },
+            serializers: {
+              req: (req: { url?: string }) => ({ ...req, url: redactUrl(req.url) }),
+            },
             autoLogging: { ignore: (req) => req.url?.startsWith('/api/health') ?? false },
             transport: isDevelopment
               ? { target: 'pino-pretty', options: { singleLine: true } }

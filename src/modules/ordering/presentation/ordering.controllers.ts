@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Header,
+  Headers,
   HttpCode,
   Inject,
   Param,
@@ -145,8 +146,11 @@ export class CustomerOrdersController {
   @ApiOkResponse({ type: OrderResponse })
   async guest(
     @Param('orderNumber') orderNumber: string,
-    @Query('token') token: string | undefined,
+    @Query('token') queryToken: string | undefined,
+    @Headers('x-order-token') headerToken: string | undefined,
   ): Promise<OrderResponse> {
+    // El encabezado X-Order-Token evita que el token quede en historiales y logs.
+    const token = headerToken ?? queryToken;
     const number = orderNumber.toUpperCase();
     // Formato inválido o sin token: mismo 404 que un pedido inexistente.
     const valid = ORDER_NUMBER.test(number) && typeof token === 'string' && token.length >= 20;

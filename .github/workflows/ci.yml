@@ -65,3 +65,19 @@ jobs:
 
       - name: Compilar
         run: npm run build
+
+  # La imagen de producción debe poder construirse en cada cambio.
+  docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: verify
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Construir la imagen
+        run: docker build --tag telar-casa-carrillo-api:ci .
+
+      - name: La imagen arranca sus herramientas
+        run: |
+          docker run --rm telar-casa-carrillo-api:ci node -e "require('@prisma/client'); console.log('ok')"
+          docker run --rm telar-casa-carrillo-api:ci npx prisma --version

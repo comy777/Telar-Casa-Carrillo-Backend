@@ -104,12 +104,35 @@
 - [ ] Pendiente si el volumen crece: pasar los eventos a una tabla outbox. Con el bus en memoria, un correo puede perderse si el proceso se cae justo después del commit; el pedido no se pierde.
 
 ## Fase 8 — Producción
-- Pruebas E2E del recorrido completo.
-- Revisión de seguridad y privacidad.
-- Backups y restauración probada.
-- Variables/secretos en gestor seguro.
-- Observabilidad, dominio, HTTPS y despliegue.
-- Prueba de compra real de bajo valor y reembolso controlado.
+- [x] Prueba E2E del recorrido completo (`test/journey.e2e-spec.ts`):
+  1. Catálogo y búsqueda.
+  2. Carrito de invitado e inicio de sesión.
+  3. Cupón y checkout.
+  4. Pago con evento firmado.
+  5. Factura, despacho y entrega.
+  6. Retracto con reembolso parcial.
+  7. Correos y métricas.
+- [x] Revisión de seguridad y privacidad (`docs/security.md`):
+  - Barrido automático de autorización sobre todas las rutas `/admin`.
+  - Tokens ocultos en los logs, también los de la URL.
+  - `Cache-Control: no-store` por defecto.
+  - `TRUST_PROXY`.
+  - Token de invitado por cabecera.
+  - Exportación y supresión de datos del titular (Ley 1581).
+- [x] Respaldos (`npm run db:backup`) y simulacro de restauración automatizado (`npm run db:restore-check`), verificado en desarrollo. Política y procedimiento de incidentes en `docs/operations.md`.
+- [x] Secretos: validados al arrancar y con soporte de archivos montados (`*_FILE`) para gestores de secretos.
+- [x] Despliegue:
+  - Imagen Docker (usuario sin privilegios, `HEALTHCHECK`), construida también en la CI.
+  - Fase de release (`npm run release`) y guía en `docs/deployment.md`.
+  - Monitoreo con `/api/health`, `/admin/system/status` y logs JSON.
+- [ ] Pendiente (no se puede automatizar desde aquí):
+  - Elegir el proveedor y desplegar.
+  - Configurar el dominio y HTTPS.
+  - Cargar los secretos reales.
+  - Probar en el sandbox real de Wompi.
+  - Hacer la **compra real de bajo valor y su reembolso controlado**.
+
+  Todo está en `docs/go-live-checklist.md`.
 
 ## Definition of Done por módulo
 - Reglas de dominio probadas.
