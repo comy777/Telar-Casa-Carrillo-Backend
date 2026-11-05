@@ -1,5 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { CLOCK, type Clock } from '../../../shared/application/clock';
+import { DOMAIN_EVENTS, type DomainEvents } from '../../../shared/application/domain-events';
 import { UNIT_OF_WORK, type UnitOfWork } from '../../../shared/application/unit-of-work';
 import {
   type Availability,
@@ -46,6 +47,7 @@ export class StockReservations {
     @Inject(INVENTORY_SETTINGS) private readonly settings: InventorySettings,
     @Inject(UNIT_OF_WORK) private readonly unitOfWork: UnitOfWork,
     @Inject(CLOCK) private readonly clock: Clock,
+    @Inject(DOMAIN_EVENTS) private readonly events: DomainEvents,
   ) {}
 
   /** Disponibilidad por variante; lo que el carrito ya tiene apartado cuenta como suyo. */
@@ -201,6 +203,14 @@ export class StockReservations {
           continue;
         }
         const after = await this.inventory.consume(line.variantId, line.quantity);
+        // Aviso al cruzar el umbral de pocas unidades (no en cada venta).
+        const available = availableQuantity(after);
+        if (
+          available <= after.lowStockThreshold &&
+          available + line.quantity > after.lowStockThreshold
+        ) {
+          this.events.publish({ type: 'stock.low', variantId: line.variantId, available });
+        }
         await this.inventory.recordMovement({
           variantId: line.variantId,
           type: 'OUT',

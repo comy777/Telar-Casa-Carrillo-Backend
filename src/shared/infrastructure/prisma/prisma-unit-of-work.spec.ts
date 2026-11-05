@@ -48,3 +48,58 @@ describe('PrismaUnitOfWork', () => {
     );
   });
 });
+
+describe('PrismaUnitOfWork.afterCommit', () => {
+  const tx = {} as Prisma.TransactionClient;
+
+  const build = (fails = false) => {
+    const prisma = {
+      $transaction: jest.fn(
+        async (work: (client: Prisma.TransactionClient) => Promise<unknown>) => {
+          const result = await work(tx);
+          if (fails) throw new Error('rollback');
+          return result;
+        },
+      ),
+    } as unknown as PrismaService;
+    return new PrismaUnitOfWork(prisma, new PrismaTransactionContext());
+  };
+
+  it('corre después de confirmar, no durante la transacción', async () => {
+    const unitOfWork = build();
+    const calls: string[] = [];
+    await unitOfWork.execute(async () => {
+      unitOfWork.afterCommit(() => {
+        calls.push('después');
+      });
+      await unitOfWork.execute(() => {
+        unitOfWork.afterCommit(() => {
+          calls.push('anidada');
+        });
+        return Promise.resolve();
+      });
+      calls.push('dentro');
+    });
+    expect(calls).toEqual(['dentro', 'después', 'anidada']);
+  });
+
+  it('no corre si la transacción se revierte', async () => {
+    const unitOfWork = build(true);
+    const callback = jest.fn();
+    await expect(
+      unitOfWork.execute(() => {
+        unitOfWork.afterCommit(callback);
+        return Promise.resolve();
+      }),
+    ).rejects.toThrow('rollback');
+    expect(callback).not.toHaveBeenCalled();
+  });
+
+  it('sin transacción corre de inmediato y sus errores no se propagan', async () => {
+    const unitOfWork = build();
+    const callback = jest.fn().mockRejectedValue(new Error('correo caído'));
+    unitOfWork.afterCommit(callback);
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(callback).toHaveBeenCalled();
+  });
+});

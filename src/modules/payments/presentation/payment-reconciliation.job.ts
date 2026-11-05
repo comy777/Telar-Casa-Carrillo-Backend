@@ -1,5 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { DOMAIN_EVENTS, type DomainEvents } from '../../../shared/application/domain-events';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import type { Env } from '../../../shared/config/env.schema';
 import { jobsEnabled, ScheduledJob } from '../../../shared/presentation/scheduled-job';
@@ -16,9 +17,14 @@ export class PaymentReconciliationJob {
   constructor(
     private readonly payments: PaymentsService,
     config: ConfigService<Env, true>,
+    @Inject(DOMAIN_EVENTS) events: DomainEvents,
   ) {
     const configured = Boolean(config.get('WOMPI_PRIVATE_KEY', { infer: true }));
-    this.job = new ScheduledJob(PaymentReconciliationJob.name, configured && jobsEnabled(config));
+    this.job = new ScheduledJob(
+      PaymentReconciliationJob.name,
+      configured && jobsEnabled(config),
+      events,
+    );
   }
 
   @Cron(CronExpression.EVERY_5_MINUTES)

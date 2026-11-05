@@ -80,7 +80,10 @@ describe('SessionService', () => {
       verify: () => Promise.resolve(null),
     };
     const users = { findById: () => Promise.resolve(user) } as unknown as UserRepository;
-    const unitOfWork: UnitOfWork = { execute: (work) => work() };
+    const unitOfWork: UnitOfWork = {
+      execute: (work) => work(),
+      afterCommit: (callback) => void callback(),
+    };
     const auditTrail: AuditTrail = {
       record: (entry) => {
         audit.push(entry);

@@ -1,5 +1,6 @@
 import { Inject, Injectable, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { DOMAIN_EVENTS, type DomainEvents } from '../../../shared/application/domain-events';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import type { Env } from '../../../shared/config/env.schema';
 import { jobsEnabled, ScheduledJob } from '../../../shared/presentation/scheduled-job';
@@ -22,9 +23,10 @@ export class OrderExpiryJob {
   constructor(
     private readonly lifecycle: OrderLifecycle,
     config: ConfigService<Env, true>,
+    @Inject(DOMAIN_EVENTS) events: DomainEvents,
     @Optional() @Inject(AWAITING_PAYMENT_CHECK) private readonly payments?: AwaitingPaymentCheck,
   ) {
-    this.job = new ScheduledJob(OrderExpiryJob.name, jobsEnabled(config));
+    this.job = new ScheduledJob(OrderExpiryJob.name, jobsEnabled(config), events);
   }
 
   @Cron(CronExpression.EVERY_MINUTE)

@@ -7,6 +7,7 @@ import {
   type PageRequest,
 } from '../../../shared/application/audit-trail';
 import { CLOCK, type Clock } from '../../../shared/application/clock';
+import { DOMAIN_EVENTS, type DomainEvents } from '../../../shared/application/domain-events';
 import { UNIT_OF_WORK, type UnitOfWork } from '../../../shared/application/unit-of-work';
 import { BusinessRuleViolation, ConflictError, NotFoundError } from '../../../shared/domain/errors';
 import { StockReservations } from '../../inventory/application/stock-reservations.service';
@@ -27,6 +28,7 @@ import {
   type OrderListQuery,
   type OrderRecord,
   type OrderRepository,
+  type TransitionChange,
 } from './ports';
 
 /** Pedidos del cliente: con sesión por su cuenta, como invitado con el token del correo. */
@@ -79,9 +81,28 @@ export class OrderLifecycle {
     @Inject(UNIT_OF_WORK) private readonly unitOfWork: UnitOfWork,
     @Inject(AUDIT_TRAIL) private readonly audit: AuditTrail,
     @Inject(CLOCK) private readonly clock: Clock,
+    @Inject(DOMAIN_EVENTS) private readonly events: DomainEvents,
     private readonly stock: StockReservations,
     private readonly coupons: CouponRedemptions,
   ) {}
+
+  /**
+   * Aplica la transición si el pedido sigue en `from` y publica el cambio
+   * (las notificaciones salen tras el commit).
+   */
+  async transition(orderId: string, change: TransitionChange): Promise<boolean> {
+    const changed = await this.orders.transition(orderId, change);
+    if (changed) {
+      this.events.publish({
+        type: change.to === 'PAID' ? 'order.paid' : 'order.status_changed',
+        orderId,
+        from: change.from,
+        to: change.to,
+        note: change.note ?? null,
+      });
+    }
+    return changed;
+  }
 
   async require(id: string): Promise<OrderRecord> {
     const order = await this.orders.findById(id);
@@ -106,7 +127,7 @@ export class OrderLifecycle {
     }
     const now = this.clock.now();
     if (
-      !(await this.orders.transition(orderId, {
+      !(await this.transition(orderId, {
         from: 'PENDING_PAYMENT',
         to: 'PAID',
         actorId: null,
@@ -157,7 +178,7 @@ export class OrderLifecycle {
     note?: string | null,
   ): Promise<boolean> {
     return this.unitOfWork.execute(async () => {
-      const changed = await this.orders.transition(orderId, {
+      const changed = await this.transition(orderId, {
         from: 'PENDING_PAYMENT',
         to: 'CANCELLED',
         actorId,
@@ -186,7 +207,7 @@ export class OrderLifecycle {
       const to: OrderStatus =
         order.status === 'SHIPPED' || order.status === 'DELIVERED' ? 'REFUNDED' : 'CANCELLED';
       assertTransition(order.status, to);
-      const changed = await this.orders.transition(orderId, {
+      const changed = await this.transition(orderId, {
         from: order.status,
         to,
         actorId,
@@ -254,7 +275,7 @@ export class OrderAdministration {
     if (to === 'CANCELLED') {
       await this.lifecycle.cancelUnpaid(id, 'order_cancelled', actor.id, note);
     } else {
-      const changed = await this.orders.transition(id, {
+      const changed = await this.lifecycle.transition(id, {
         from: order.status,
         to,
         actorId: actor.id,

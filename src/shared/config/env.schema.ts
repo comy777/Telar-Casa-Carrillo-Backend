@@ -60,6 +60,11 @@ export const envSchema = z
 
     // URL pública de la tienda: los enlaces de los correos apuntan aquí.
     STOREFRONT_URL: z.string().refine(isHttpOrigin, 'Debe tener la forma http(s)://host[:puerto]'),
+    // Panel de administración: los enlaces de las alertas apuntan aquí.
+    ADMIN_URL: z
+      .string()
+      .default('http://localhost:3002')
+      .refine(isHttpOrigin, 'Debe tener la forma http(s)://host[:puerto]'),
 
     // Identidad
     JWT_ACCESS_SECRET: z.string().min(32, 'Debe tener al menos 32 caracteres'),
@@ -115,6 +120,19 @@ export const envSchema = z
     WOMPI_PRIVATE_KEY: optional(z.string()),
     WOMPI_EVENTS_SECRET: optional(z.string()),
     WOMPI_INTEGRITY_SECRET: optional(z.string()),
+
+    // Correos de la tienda: pedidos pagados y alertas (pagos a revisar, poco
+    // stock, procesos que fallan). Lista separada por comas; vacía = solo logs.
+    ADMIN_ALERT_EMAILS: z
+      .string()
+      .default('')
+      .transform((value) =>
+        value
+          .split(',')
+          .map((item) => item.trim().toLowerCase())
+          .filter(Boolean),
+      )
+      .pipe(z.array(z.string().email('Cada correo de ADMIN_ALERT_EMAILS debe ser válido'))),
 
     // Procesos programados (liberar reservas, limpiar carritos). Por defecto
     // activos salvo en pruebas. Con varias instancias pueden correr en todas:

@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { AUDIT_TRAIL, type AuditTrail } from '../../../shared/application/audit-trail';
 import { CLOCK, type Clock } from '../../../shared/application/clock';
+import { DOMAIN_EVENTS, type DomainEvents } from '../../../shared/application/domain-events';
 import { UNIT_OF_WORK, type UnitOfWork } from '../../../shared/application/unit-of-work';
 import {
   AuthenticationError,
@@ -65,6 +66,7 @@ export class PaymentsService {
     @Inject(UNIT_OF_WORK) private readonly unitOfWork: UnitOfWork,
     @Inject(AUDIT_TRAIL) private readonly audit: AuditTrail,
     @Inject(CLOCK) private readonly clock: Clock,
+    @Inject(DOMAIN_EVENTS) private readonly events: DomainEvents,
     private readonly orders: CustomerOrders,
     private readonly lifecycle: OrderLifecycle,
   ) {}
@@ -294,6 +296,12 @@ export class PaymentsService {
       resource: 'Payment',
       resourceId: payment.id,
       metadata: { reason, reference: payment.reference, orderNumber: payment.orderNumber },
+    });
+    this.events.publish({
+      type: 'payment.needs_review',
+      paymentId: payment.id,
+      reason,
+      orderNumber: payment.orderNumber,
     });
     this.logger.warn(`Pago ${payment.reference} requiere revisión: ${reason}`);
   }

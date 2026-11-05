@@ -2,7 +2,7 @@
 
 API de la tienda en línea Telar Casa Carrillo: NestJS 11, PostgreSQL 16 y Prisma 6, organizada con Clean Architecture por módulos.
 
-Estado: **Fases 1 (fundaciones), 2 (identidad y administración), 3 (catálogo), 4 (carrito e inventario), 5 (pedidos y checkout) y 6 (pagos con Wompi)** del [plan de implementación](docs/implementation-plan.md).
+Estado: **Fases 1 (fundaciones), 2 (identidad y administración), 3 (catálogo), 4 (carrito e inventario), 5 (pedidos y checkout), 6 (pagos con Wompi) y 7 (seguimiento, notificaciones, métricas y reportes)** del [plan de implementación](docs/implementation-plan.md).
 
 ## Requisitos
 - Node.js 22 o superior (ver `.nvmrc`)
@@ -138,6 +138,18 @@ Administración: `/api/v1/admin/products` (con `/:id/status`, `/:id/variants` y 
 - Conciliación cada 5 minutos para pagos pendientes; un pedido con un pago en curso no vence.
 - Administración: `/api/v1/admin/payments` (`needsReview=true` lista los que requieren reembolso), `POST /admin/payments/:id/refunds` (total o parcial, con encabezado `Idempotency-Key`) y `PATCH /admin/refunds/:id` para confirmar los que quedan en curso.
 - Sin llaves de Wompi (solo fuera de producción) los endpoints de pago responden 503 `PAYMENTS_NOT_CONFIGURED`.
+
+## Operación
+| Ruta | Qué hace |
+|---|---|
+| `GET /api/v1/orders/:numero/tracking` | Seguimiento para el cliente (sesión o `?token=`) |
+| `POST /api/v1/admin/orders/:id/shipments` | Registra el despacho (con guía, el pedido queda `SHIPPED`) |
+| `POST /api/v1/admin/shipments/:id/events` | Evento de seguimiento (`DELIVERED` deja el pedido entregado) |
+| `GET /api/v1/admin/metrics?from=&to=` | Ventas, pedidos por estado, ventas por día, más vendidos y pendientes |
+| `GET /api/v1/admin/reports/{orders,order-items,inventory}.csv` | Exportaciones (`delimiter=;` para Excel en español) |
+| `GET /api/v1/admin/system/status` | Procesos programados, notificaciones fallidas y `healthy` para monitoreo |
+
+Los correos al cliente (pedido recibido, pago, envío, entrega, cancelación, devolución) y las alertas a `ADMIN_ALERT_EMAILS` salen solos después de cada cambio confirmado.
 
 ## Convenciones ya implementadas
 - **Configuración:** las variables de entorno se validan con Zod al arrancar (`src/shared/config/env.schema.ts`). En producción además se exige SMTP, HTTPS en la tienda y un secreto JWT que no sea el de ejemplo.

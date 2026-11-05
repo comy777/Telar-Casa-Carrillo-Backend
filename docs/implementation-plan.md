@@ -89,11 +89,19 @@
 - [ ] Pendiente si se requiere: Mercado Pago (las variables siguen en `.env.example`, pero no hay adaptador).
 
 ## Fase 7 — Experiencia y operación
-- Seguimiento de pedidos.
-- Notificaciones por correo.
-- Panel de métricas.
-- Exportaciones y reportes.
-- Monitoreo y alertas.
+- [x] Seguimiento de pedidos:
+  - Despachos con transportadora y guía, y eventos de seguimiento (`/admin/orders/:id/shipments`, `/admin/shipments/:id/events`).
+  - Mueven el pedido a `PROCESSING`, `SHIPPED` y `DELIVERED`.
+  - El cliente lo consulta en `/orders/:numero/tracking`.
+- [x] Notificaciones por correo:
+  - Al cliente: pedido recibido, pago confirmado, enviado (con la guía), entregado, cancelado y devolución.
+  - A la tienda (`ADMIN_ALERT_EMAILS`): pedido pagado, pago por revisar, pocas unidades y proceso que falla.
+  - Se envían después del commit, mediante un bus de eventos en memoria y `UnitOfWork.afterCommit`.
+- [x] Panel de métricas (`/admin/metrics`): ventas, IVA, envíos, descuentos y reembolsos; pedidos por estado; ventas por día (hora de Colombia); los 10 más vendidos; y pendientes de operación.
+- [x] Exportaciones en CSV (`/admin/reports/orders.csv`, `order-items.csv` para contabilidad e IVA, `inventory.csv`), con BOM, `delimiter=;` para Excel en español y protección contra inyección de fórmulas.
+- [x] Monitoreo (`/admin/system/status`): estado de los procesos programados, notificaciones fallidas, firmas inválidas, pagos estancados y pedidos vencidos sin cancelar. El campo `healthy` sirve para un monitor externo. Además, `/api/health` responde para el balanceador.
+- [ ] Pendiente: integrar por API las transportadoras (Servientrega, Coordinadora, etc.) cuando se elijan. Hoy la guía y los eventos se registran a mano.
+- [ ] Pendiente si el volumen crece: pasar los eventos a una tabla outbox. Con el bus en memoria, un correo puede perderse si el proceso se cae justo después del commit; el pedido no se pierde.
 
 ## Fase 8 — Producción
 - Pruebas E2E del recorrido completo.

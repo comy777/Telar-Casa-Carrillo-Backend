@@ -1,10 +1,12 @@
 import { Global, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { CLOCK, type Clock } from '../application/clock';
+import { DOMAIN_EVENTS } from '../application/domain-events';
 import { EMAIL_SENDER, type EmailSender } from '../application/email-sender';
 import { IMAGE_STORAGE, type ImageStorage } from '../application/image-storage';
 import type { Env } from '../config/env.schema';
 import { LogEmailSender } from './email/log-email-sender';
+import { InProcessEventBus } from './events/in-process-event-bus';
 import { SmtpEmailSender } from './email/smtp-email-sender';
 import { CloudinaryImageStorage } from './storage/cloudinary-image-storage';
 import { LocalImageStorage } from './storage/local-image-storage';
@@ -16,6 +18,7 @@ const systemClock: Clock = { now: () => new Date() };
 @Module({
   providers: [
     { provide: CLOCK, useValue: systemClock },
+    { provide: DOMAIN_EVENTS, useClass: InProcessEventBus },
     {
       provide: EMAIL_SENDER,
       inject: [ConfigService],
@@ -52,6 +55,6 @@ const systemClock: Clock = { now: () => new Date() };
       },
     },
   ],
-  exports: [CLOCK, EMAIL_SENDER, IMAGE_STORAGE],
+  exports: [CLOCK, EMAIL_SENDER, IMAGE_STORAGE, DOMAIN_EVENTS],
 })
 export class PlatformModule {}

@@ -1,5 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { DOMAIN_EVENTS, type DomainEvents } from '../../../shared/application/domain-events';
 import { Cron } from '@nestjs/schedule';
 import type { Env } from '../../../shared/config/env.schema';
 import { jobsEnabled, ScheduledJob } from '../../../shared/presentation/scheduled-job';
@@ -13,8 +14,9 @@ export class GuestCartCleanupJob {
   constructor(
     private readonly carts: CartService,
     config: ConfigService<Env, true>,
+    @Inject(DOMAIN_EVENTS) events: DomainEvents,
   ) {
-    this.job = new ScheduledJob(GuestCartCleanupJob.name, jobsEnabled(config));
+    this.job = new ScheduledJob(GuestCartCleanupJob.name, jobsEnabled(config), events);
   }
 
   @Cron('17 * * * *')

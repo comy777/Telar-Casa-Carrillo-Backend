@@ -1,6 +1,6 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { CLOCK, type Clock } from '../../../shared/application/clock';
-import { EMAIL_SENDER, type EmailSender } from '../../../shared/application/email-sender';
+import { DOMAIN_EVENTS, type DomainEvents } from '../../../shared/application/domain-events';
 import { UNIT_OF_WORK, type UnitOfWork } from '../../../shared/application/unit-of-work';
 import {
   type IdentityDocumentType,
@@ -102,8 +102,6 @@ function normalizeEmail(email: string | undefined): string {
  */
 @Injectable()
 export class CheckoutService {
-  private readonly logger = new Logger(CheckoutService.name);
-
   constructor(
     private readonly carts: CartService,
     private readonly stock: StockReservations,
@@ -114,7 +112,7 @@ export class CheckoutService {
     @Inject(ORDER_ACCESS_TOKENS) private readonly tokens: OrderAccessTokens,
     @Inject(ORDERING_SETTINGS) private readonly settings: OrderingSettings,
     @Inject(UNIT_OF_WORK) private readonly unitOfWork: UnitOfWork,
-    @Inject(EMAIL_SENDER) private readonly email: EmailSender,
+    @Inject(DOMAIN_EVENTS) private readonly events: DomainEvents,
     @Inject(CLOCK) private readonly clock: Clock,
   ) {}
 
@@ -256,11 +254,11 @@ export class CheckoutService {
       await this.stock.transferCartToOrder(cart.id, orderId, paymentDueAt);
       await this.carts.emptyAfterOrder(cart);
 
+      // La confirmación por correo la envía el módulo de notificaciones tras el commit.
+      this.events.publish({ type: 'order.placed', orderId, accessToken: access?.token ?? null });
       const order = (await this.orders.findById(orderId))!;
       return { order, accessToken: access?.token ?? null, cookie };
     });
-
-    await this.sendConfirmation(placed.order, placed.accessToken);
     return placed;
   }
 
@@ -327,33 +325,5 @@ export class CheckoutService {
       throw new BusinessRuleViolation('Indica la dirección de envío', 'ADDRESS_REQUIRED');
     }
     return toPostalAddress(input.shippingAddress);
-  }
-
-  /** El pedido ya está creado: si el correo falla, solo se registra. */
-  private async sendConfirmation(order: OrderRecord, accessToken: string | null): Promise<void> {
-    const link = accessToken
-      ? `${this.settings.storefrontUrl}/pedido/${order.orderNumber}?token=${accessToken}`
-      : `${this.settings.storefrontUrl}/cuenta/pedidos/${order.orderNumber}`;
-    const total = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP' }).format(
-      centsToPesos(order.grandTotalCents),
-    );
-    try {
-      await this.email.send({
-        to: order.customer.email,
-        subject: `Recibimos tu pedido ${order.orderNumber}`,
-        text: [
-          `Hola ${order.customer.name},`,
-          '',
-          `Recibimos tu pedido ${order.orderNumber} por ${total}.`,
-          'Lo prepararemos en cuanto se confirme el pago.',
-          '',
-          `Consulta su estado aquí: ${link}`,
-          '',
-          'Telar Casa Carrillo',
-        ].join('\n'),
-      });
-    } catch (error) {
-      this.logger.error(`No se pudo enviar la confirmación de ${order.orderNumber}`, error);
-    }
   }
 }
