@@ -30,6 +30,9 @@ ALTER TABLE "ProductVariant" ADD CONSTRAINT "variant_price_nonneg" CHECK ("price
 ALTER TABLE "ProductVariant" ADD CONSTRAINT "variant_compare_at_gt_price"
   CHECK ("compareAtPrice" IS NULL OR "compareAtPrice" > "price");
 ALTER TABLE "Product" ADD CONSTRAINT "product_tax_rate_range" CHECK ("taxRate" >= 0 AND "taxRate" <= 1);
+-- Agregada en la migración catalog_media_keys (Fase 3).
+ALTER TABLE "Category" ADD CONSTRAINT "category_not_own_parent"
+  CHECK ("parentId" IS NULL OR "parentId" <> "id");
 
 -- Cupones
 ALTER TABLE "Coupon" ADD CONSTRAINT "coupon_value_pos" CHECK ("value" > 0);

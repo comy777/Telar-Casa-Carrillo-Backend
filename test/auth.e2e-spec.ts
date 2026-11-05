@@ -375,7 +375,14 @@ describe('Identidad (e2e, base de datos real)', () => {
       const me = await http().get('/api/v1/auth/me').set(bearer(ana.accessToken)).expect(200);
       expect(me.body).toMatchObject({
         roles: ['admin', 'customer'],
-        permissions: ['audit:read', 'roles:read', 'users:manage', 'users:read'],
+        permissions: [
+          'audit:read',
+          'catalog:manage',
+          'catalog:read',
+          'roles:read',
+          'users:manage',
+          'users:read',
+        ],
       });
     });
 

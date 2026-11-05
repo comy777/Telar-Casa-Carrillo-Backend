@@ -2,7 +2,7 @@
 
 API de la tienda en línea Telar Casa Carrillo: NestJS 11, PostgreSQL 16 y Prisma 6, organizada con Clean Architecture por módulos.
 
-Estado: **Fases 1 (fundaciones) y 2 (identidad y administración)** del [plan de implementación](docs/implementation-plan.md).
+Estado: **Fases 1 (fundaciones), 2 (identidad y administración) y 3 (catálogo)** del [plan de implementación](docs/implementation-plan.md).
 
 ## Requisitos
 - Node.js 22 o superior (ver `.nvmrc`)
@@ -67,7 +67,26 @@ Para el frontend:
 - La cookie es `SameSite=Strict` y solo se envía a `/api/v1/auth`: storefront y API deben estar en el mismo sitio (p. ej. `tienda.com` y `api.tienda.com`).
 - Los enlaces de los correos apuntan a `STOREFRONT_URL` + `/cuenta/verificar-correo?token=…` y `/cuenta/restablecer-contrasena?token=…`.
 
-Toda ruta exige access token salvo las marcadas como públicas. La administración (`/api/v1/admin/...`) exige además permisos: `users:read`, `users:manage`, `roles:read` y `audit:read`. Los permisos y roles se definen en `src/modules/identity/domain/permissions.ts` y se sincronizan con `npm run db:seed`.
+Toda ruta exige access token salvo las marcadas como públicas. La administración (`/api/v1/admin/...`) exige además permisos: `users:read`, `users:manage`, `roles:read`, `audit:read`, `catalog:read` y `catalog:manage`. Los permisos y roles se definen en `src/modules/identity/domain/permissions.ts` y se sincronizan con `npm run db:seed` (ejecutarlo después de actualizar).
+
+## Catálogo
+Tienda (públicas, con `Cache-Control` de 60 s):
+
+| Ruta | Qué hace |
+|---|---|
+| `GET /api/v1/catalog/products` | Busca (`q`) y filtra (`category`, `artisan`, `material`, `minPrice`, `maxPrice`, `featured`); ordena con `sort` = `relevance`, `newest`, `price_asc`, `price_desc` |
+| `GET /api/v1/catalog/products/:slug` | Detalle con variantes activas, galería, artesano y `seo` listo para las metaetiquetas |
+| `GET /api/v1/catalog/categories` | Árbol de categorías visibles |
+| `GET /api/v1/catalog/categories/:slug` | Categoría con migas de pan y subcategorías |
+| `GET /api/v1/catalog/artisans`, `/artisans/:slug` | Artesanos activos (sus productos: `/products?artisan=`) |
+| `GET /api/v1/catalog/materials` | Materiales para el filtro |
+| `GET /api/v1/catalog/sitemap` | Slugs publicados para `sitemap.xml` |
+
+Administración: `/api/v1/admin/products` (con `/:id/status`, `/:id/variants` y `/:id/images`), `/api/v1/admin/categories` y `/api/v1/admin/artisans`. Detalle en `/api/docs`.
+
+- Los precios van en pesos con IVA incluido; internamente se manejan en centavos enteros.
+- Un producto se crea en `DRAFT`; para publicarlo (`PATCH /:id/status` con `ACTIVE`) necesita una variante activa y una imagen. Las variantes no se borran, se desactivan.
+- Las imágenes se suben como `multipart/form-data` en el campo `file` (JPEG, PNG o WebP, máx. 5 MB). Sin Cloudinary configurado, en desarrollo quedan en `uploads/` y la API las sirve en `/media/...`.
 
 ## Scripts
 | Script | Qué hace |
@@ -91,6 +110,7 @@ Toda ruta exige access token salvo las marcadas como públicas. La administraci�
 - **Auditoría:** el puerto `AUDIT_TRAIL` está disponible en todos los módulos; registro, inicio de sesión (exitoso y fallido), verificación, recuperación, reutilización de sesión y acciones de administración ya quedan registrados.
 - **Transacciones:** los casos de uso dependen del puerto `UnitOfWork`. Los repositorios Prisma usan `PrismaClientProvider.client`, que devuelve la transacción activa cuando la hay.
 - **Webhooks:** `rawBody` está activo para poder verificar firmas de las pasarelas.
+- **Imágenes:** el puerto `IMAGE_STORAGE` (Cloudinary o disco) está disponible en todos los módulos. En producción se exige Cloudinary.
 
 ## Documentación
 - [Arquitectura](docs/architecture.md)

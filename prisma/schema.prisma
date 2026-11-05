@@ -207,6 +207,8 @@ model Artisan {
   biography   String?
   story       String?
   photoUrl    String?
+  // Clave del archivo en el almacenamiento de imágenes, para poder borrarlo.
+  photoKey    String?
   isFeatured  Boolean   @default(false)
   isActive    Boolean   @default(true)
   createdAt   DateTime  @default(now())
@@ -222,6 +224,7 @@ model Category {
   slug        String     @unique
   description String?
   imageUrl    String?
+  imageKey    String?
   isActive    Boolean    @default(true)
   sortOrder   Int        @default(0)
   parent      Category?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
@@ -272,6 +275,7 @@ model ProductImage {
   // Opcional: imagen específica de una variante (p. ej. un color).
   variantId String?  @db.Uuid
   url       String
+  // Clave del archivo en el almacenamiento (public_id en Cloudinary).
   publicId  String?
   altText   String?
   sortOrder Int      @default(0)

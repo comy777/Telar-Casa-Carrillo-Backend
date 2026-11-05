@@ -70,6 +70,23 @@ export const envSchema = z
     // Versión de la política de tratamiento de datos que acepta quien se registra (Ley 1581).
     PRIVACY_POLICY_VERSION: z.string().min(1).default('2026-11'),
 
+    // URL pública de la API: la usan las imágenes guardadas en disco (desarrollo).
+    API_PUBLIC_URL: z
+      .string()
+      .default('http://localhost:3001')
+      .refine(isHttpOrigin, 'Debe tener la forma http(s)://host[:puerto]'),
+
+    // Imágenes. Con CLOUDINARY_CLOUD_NAME se usa Cloudinary; sin él (solo fuera
+    // de producción) se guardan en MEDIA_LOCAL_DIR y las sirve la API en /media.
+    CLOUDINARY_CLOUD_NAME: optional(z.string()),
+    CLOUDINARY_API_KEY: optional(z.string()),
+    CLOUDINARY_API_SECRET: optional(z.string()),
+    CLOUDINARY_FOLDER: z
+      .string()
+      .regex(/^[\w-]+$/)
+      .default('telar-casa-carrillo'),
+    MEDIA_LOCAL_DIR: z.string().min(1).default('uploads'),
+
     // Correo. Sin SMTP_HOST (solo fuera de producción) los correos se escriben en el log.
     SMTP_HOST: optional(z.string()),
     SMTP_PORT: optional(z.coerce.number().int().min(1).max(65535)),
@@ -78,11 +95,24 @@ export const envSchema = z
     EMAIL_FROM: optional(z.string()),
   })
   .superRefine((env, ctx) => {
-    if (env.NODE_ENV !== 'production') return;
-
     const require = (ok: boolean, path: string, message: string) => {
       if (!ok) ctx.addIssue({ code: z.ZodIssueCode.custom, path: [path], message });
     };
+
+    if (env.CLOUDINARY_CLOUD_NAME) {
+      require(Boolean(
+        env.CLOUDINARY_API_KEY,
+      ), 'CLOUDINARY_API_KEY', 'Falta la clave de Cloudinary');
+      require(Boolean(
+        env.CLOUDINARY_API_SECRET,
+      ), 'CLOUDINARY_API_SECRET', 'Falta el secreto de Cloudinary');
+    }
+
+    if (env.NODE_ENV !== 'production') return;
+
+    require(Boolean(
+      env.CLOUDINARY_CLOUD_NAME,
+    ), 'CLOUDINARY_CLOUD_NAME', 'En producción las imágenes deben guardarse en Cloudinary');
     require(env.CORS_ORIGINS.length >
       0, 'CORS_ORIGINS', 'En producción debe definirse al menos un origen permitido');
     require(!PLACEHOLDER_SECRET.test(

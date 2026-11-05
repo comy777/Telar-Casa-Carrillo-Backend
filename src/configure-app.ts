@@ -5,7 +5,10 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import { Logger } from 'nestjs-pino';
+import type { ServerResponse } from 'node:http';
+import { resolve } from 'node:path';
 import type { Env } from './shared/config/env.schema';
+import { LOCAL_MEDIA_ROUTE } from './shared/infrastructure/storage/local-image-storage';
 import { ProblemDetailsFilter } from './shared/presentation/problem-details.filter';
 
 const BODY_LIMIT = '1mb';
@@ -23,6 +26,19 @@ export function configureApp(app: NestExpressApplication): void {
   app.enableCors({ origin: config.get('CORS_ORIGINS', { infer: true }), credentials: true });
   app.useBodyParser('json', { limit: BODY_LIMIT });
   app.useBodyParser('urlencoded', { limit: BODY_LIMIT, extended: true });
+
+  // Imágenes en disco (desarrollo, sin Cloudinary). Helmet marca todo como
+  // same-origin; las imágenes se permiten desde otros orígenes (la tienda).
+  if (!config.get('CLOUDINARY_CLOUD_NAME', { infer: true })) {
+    app.useStaticAssets(resolve(config.get('MEDIA_LOCAL_DIR', { infer: true })), {
+      prefix: `${LOCAL_MEDIA_ROUTE}/`,
+      index: false,
+      dotfiles: 'deny',
+      maxAge: '7d',
+      setHeaders: (res: ServerResponse) =>
+        res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin'),
+    });
+  }
 
   // Rutas: /api/v1/... (salud: /api/health)
   app.setGlobalPrefix('api');

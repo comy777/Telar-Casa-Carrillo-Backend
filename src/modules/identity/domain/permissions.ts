@@ -7,6 +7,8 @@ export const PERMISSIONS = {
   USERS_MANAGE: 'users:manage',
   ROLES_READ: 'roles:read',
   AUDIT_READ: 'audit:read',
+  CATALOG_READ: 'catalog:read',
+  CATALOG_MANAGE: 'catalog:manage',
 } as const;
 
 export type PermissionKey = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
@@ -16,6 +18,8 @@ export const PERMISSION_DESCRIPTIONS: Record<PermissionKey, string> = {
   'users:manage': 'Suspender, reactivar y asignar roles a usuarios',
   'roles:read': 'Ver roles y permisos',
   'audit:read': 'Ver el registro de auditoría',
+  'catalog:read': 'Ver el catálogo completo, incluidos borradores y archivados',
+  'catalog:manage': 'Crear y editar productos, categorías y artesanos, y publicar productos',
 };
 
 export const ROLES = {

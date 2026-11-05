@@ -47,10 +47,10 @@ Cada módulo de `src/modules/` se divide en capas: `domain/`, `application/`, `i
 Telar-Casa-Carrillo-Backend/
 ├── src/
 │   ├── modules/
-│   │   ├── health/                 # ya implementado
-│   │   ├── identity/               # siguientes fases
-│   │   ├── catalog/
-│   │   ├── artisans/
+│   │   ├── health/                 # implementado (Fase 1)
+│   │   ├── audit/                  # implementado (Fase 2)
+│   │   ├── identity/               # implementado (Fase 2)
+│   │   ├── catalog/                # implementado (Fase 3), incluye artesanos
 │   │   ├── inventory/
 │   │   ├── cart/
 │   │   ├── checkout/
@@ -111,11 +111,10 @@ Los adaptadores `WompiPaymentGateway` y `MercadoPagoGateway` implementan `Paymen
 Para el checkout, la reserva de inventario y el uso del cupón se hacen con `SELECT ... FOR UPDATE` (o actualizaciones condicionales del tipo `UPDATE ... WHERE "quantityOnHand" - "quantityReserved" >= $n`) dentro de esa transacción.
 
 ## Dominios y límites
-Los nombres coinciden con las carpetas de `apps/api/src/modules/`.
+Los nombres coinciden con las carpetas de `src/modules/`.
 
 - `identity` — Identity & Access: usuarios, roles, permisos, sesiones y tokens.
-- `catalog` — Catalog: productos, variantes, categorías, materiales e imágenes.
-- `artisans` — Artisan: perfil e historia del creador.
+- `catalog` — Catalog: productos, variantes, categorías, materiales e imágenes, y Artisan (perfil e historia del creador). Los artesanos viven en el mismo módulo porque solo existen para dar contexto a los productos y se administran juntos; el agregado `Artisan` sigue siendo independiente de `Product` (se referencian por id).
 - `inventory` — Inventory: existencias, movimientos y reservas.
 - `cart` — Cart: carrito y líneas.
 - `checkout` — orquesta Cart, Inventory, Promotions, Ordering y Payments (solo casos de uso, sin agregado propio).

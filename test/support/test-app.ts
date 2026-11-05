@@ -5,6 +5,12 @@ import { AppModule } from '../../src/app.module';
 import { configureApp } from '../../src/configure-app';
 import type { EmailMessage, EmailSender } from '../../src/shared/application/email-sender';
 import { EMAIL_SENDER } from '../../src/shared/application/email-sender';
+import {
+  IMAGE_STORAGE,
+  type ImageStorage,
+  type ImageUpload,
+  type StoredImage,
+} from '../../src/shared/application/image-storage';
 import { PrismaService } from '../../src/shared/infrastructure/prisma/prisma.service';
 
 /** Guarda los correos en memoria para leer los enlaces en las pruebas. */
@@ -29,19 +35,49 @@ export class InMemoryEmailSender implements EmailSender {
   }
 }
 
+/** Almacenamiento de imágenes en memoria: permite comprobar subidas y borrados. */
+export class InMemoryImageStorage implements ImageStorage {
+  readonly files = new Map<string, ImageUpload>();
+  failNextUpload = false;
+
+  upload(image: ImageUpload): Promise<StoredImage> {
+    if (this.failNextUpload) {
+      this.failNextUpload = false;
+      return Promise.reject(new Error('Fallo simulado del almacenamiento'));
+    }
+    const key = `${image.folder}/${crypto.randomUUID()}`;
+    this.files.set(key, image);
+    return Promise.resolve({ url: `https://cdn.test/${key}`, key });
+  }
+
+  delete(key: string): Promise<void> {
+    this.files.delete(key);
+    return Promise.resolve();
+  }
+
+  clear(): void {
+    this.files.clear();
+    this.failNextUpload = false;
+  }
+}
+
 export interface TestApp {
   app: NestExpressApplication;
   prisma: PrismaClient;
   emails: InMemoryEmailSender;
-  /** Borra los datos de usuarios (conserva roles y permisos). */
+  images: InMemoryImageStorage;
+  /** Borra usuarios y catálogo (conserva roles y permisos). */
   reset(): Promise<void>;
 }
 
 export async function createTestApp(): Promise<TestApp> {
   const emails = new InMemoryEmailSender();
+  const images = new InMemoryImageStorage();
   const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
     .overrideProvider(EMAIL_SENDER)
     .useValue(emails)
+    .overrideProvider(IMAGE_STORAGE)
+    .useValue(images)
     .compile();
 
   const app = moduleRef.createNestApplication<NestExpressApplication>({ bufferLogs: true });
@@ -53,11 +89,15 @@ export async function createTestApp(): Promise<TestApp> {
     app,
     prisma,
     emails,
+    images,
     reset: async () => {
       await prisma.$executeRawUnsafe(
-        'TRUNCATE "AuditLog", "RefreshToken", "UserToken", "UserRole", "User" CASCADE',
+        `TRUNCATE "AuditLog", "RefreshToken", "UserToken", "UserRole", "User",
+          "ProductImage", "ProductVariant", "ProductCategory", "ProductMaterial", "Product",
+          "Material", "Category", "Artisan" CASCADE`,
       );
       emails.clear();
+      images.clear();
     },
   };
 }

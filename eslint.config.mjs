@@ -21,7 +21,11 @@ export default tseslint.config(
       // No se usa consistent-type-imports: la inyección de dependencias de NestJS
       // necesita las clases como valores (emitDecoratorMetadata).
       '@typescript-eslint/no-floating-promises': 'error',
-      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+      // ignoreRestSiblings: permite omitir campos con `const { secreto, ...resto } = x`.
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { argsIgnorePattern: '^_', ignoreRestSiblings: true },
+      ],
     },
   },
   {

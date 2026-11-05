@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AuditModule } from './modules/audit/audit.module';
+import { CatalogModule } from './modules/catalog/catalog.module';
 import { HealthModule } from './modules/health/health.module';
 import { IdentityModule } from './modules/identity/identity.module';
 import { type Env, validateEnv } from './shared/config/env.schema';
@@ -27,6 +28,7 @@ import { PrismaModule } from './shared/infrastructure/prisma/prisma.module';
     PlatformModule,
     AuditModule,
     IdentityModule,
+    CatalogModule,
     HealthModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],

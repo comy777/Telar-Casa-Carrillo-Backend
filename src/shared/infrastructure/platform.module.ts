@@ -2,9 +2,12 @@ import { Global, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { CLOCK, type Clock } from '../application/clock';
 import { EMAIL_SENDER, type EmailSender } from '../application/email-sender';
+import { IMAGE_STORAGE, type ImageStorage } from '../application/image-storage';
 import type { Env } from '../config/env.schema';
 import { LogEmailSender } from './email/log-email-sender';
 import { SmtpEmailSender } from './email/smtp-email-sender';
+import { CloudinaryImageStorage } from './storage/cloudinary-image-storage';
+import { LocalImageStorage } from './storage/local-image-storage';
 
 const systemClock: Clock = { now: () => new Date() };
 
@@ -28,7 +31,27 @@ const systemClock: Clock = { now: () => new Date() };
         });
       },
     },
+    {
+      provide: IMAGE_STORAGE,
+      inject: [ConfigService],
+      useFactory: (config: ConfigService<Env, true>): ImageStorage => {
+        const cloudName = config.get('CLOUDINARY_CLOUD_NAME', { infer: true });
+        if (!cloudName) {
+          return new LocalImageStorage(
+            config.get('MEDIA_LOCAL_DIR', { infer: true }),
+            config.get('API_PUBLIC_URL', { infer: true }),
+          );
+        }
+        // La validación del entorno garantiza clave y secreto cuando hay cloud name.
+        return new CloudinaryImageStorage({
+          cloudName,
+          apiKey: config.get('CLOUDINARY_API_KEY', { infer: true }) ?? '',
+          apiSecret: config.get('CLOUDINARY_API_SECRET', { infer: true }) ?? '',
+          rootFolder: config.get('CLOUDINARY_FOLDER', { infer: true }),
+        });
+      },
+    },
   ],
-  exports: [CLOCK, EMAIL_SENDER],
+  exports: [CLOCK, EMAIL_SENDER, IMAGE_STORAGE],
 })
 export class PlatformModule {}

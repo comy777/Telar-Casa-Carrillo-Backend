@@ -19,3 +19,6 @@ Thumbs.db
 .idea/
 .vscode/*
 !.vscode/extensions.json
+
+# Imágenes subidas en desarrollo (MEDIA_LOCAL_DIR)
+uploads/

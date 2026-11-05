@@ -33,10 +33,15 @@
 - [ ] Pendiente para producción: configurar SMTP real y revisar las plantillas de correo con el negocio.
 
 ## Fase 3 — Catálogo
-- Productos, variantes, categorías, artesanos y galerías.
-- Carga de imágenes a almacenamiento externo.
-- Búsqueda, filtros, paginación y SEO.
-- Solo productos publicados aparecen en la tienda.
+- [x] Productos con variantes (las variantes no se borran, se desactivan), categorías en árbol de hasta 3 niveles, artesanos, materiales y galería de imágenes con una principal.
+- [x] Estados `DRAFT` → `ACTIVE` → `ARCHIVED` con transiciones explícitas; publicar exige una variante activa y una imagen.
+- [x] Carga de imágenes a Cloudinary (subida firmada, sin SDK) o a disco en desarrollo; el tipo se valida por el contenido del archivo (JPEG, PNG, WebP; máx. 5 MB) y los archivos reemplazados o quitados se borran.
+- [x] Búsqueda de texto en español (índice GIN), filtros por categoría (con subcategorías), artesano, material, precio y destacados; orden por relevancia, novedad y precio; paginación.
+- [x] SEO: título, descripción e imagen listos para las metaetiquetas, y `/catalog/sitemap` para generar `sitemap.xml`.
+- [x] Solo lo publicado aparece en la tienda: una categoría o un artesano inactivos se ocultan (y la categoría oculta su rama).
+- [x] Permisos `catalog:read` y `catalog:manage`; todos los cambios quedan en auditoría.
+- [ ] Pendiente: la búsqueda no ignora tildes ("artesania" no encuentra "artesanía"). Se resuelve con la extensión `unaccent` cuando el catálogo lo justifique.
+- [ ] Pendiente para la Fase 4: existencias por variante (la tienda aún no muestra disponibilidad).
 
 ## Fase 4 — Carrito e inventario
 - Carrito persistente para usuario y carrito invitado.

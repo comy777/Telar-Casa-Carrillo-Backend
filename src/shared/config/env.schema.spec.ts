@@ -14,6 +14,9 @@ const production = {
   JWT_ACCESS_SECRET: 'Zq3kV9xLw2NfT8pR4sY7uB1mC6hJ0dGe5aKiOt',
   SMTP_HOST: 'smtp.example.com',
   EMAIL_FROM: 'Telar <no-reply@telarcasacarrillo.co>',
+  CLOUDINARY_CLOUD_NAME: 'telar',
+  CLOUDINARY_API_KEY: '123456789012345',
+  CLOUDINARY_API_SECRET: 'cloudinary-api-secret-value',
 };
 
 describe('validateEnv', () => {
@@ -76,7 +79,25 @@ describe('validateEnv', () => {
     ['SMTP_HOST', ''],
     ['EMAIL_FROM', ''],
     ['STOREFRONT_URL', 'http://telarcasacarrillo.co'],
+    ['CLOUDINARY_CLOUD_NAME', ''],
   ])('en producción rechaza %s = "%s"', (key, value) => {
     expect(() => validateEnv({ ...production, [key]: value })).toThrow(new RegExp(key));
+  });
+});
+
+describe('validateEnv: imágenes', () => {
+  it('exige clave y secreto cuando se configura Cloudinary', () => {
+    expect(() => validateEnv({ ...base, CLOUDINARY_CLOUD_NAME: 'telar' })).toThrow(
+      /CLOUDINARY_API_KEY[\s\S]*CLOUDINARY_API_SECRET/,
+    );
+  });
+
+  it('usa disco local por defecto fuera de producción', () => {
+    const env = validateEnv(base);
+    expect(env.CLOUDINARY_CLOUD_NAME).toBeUndefined();
+    expect(env).toMatchObject({
+      MEDIA_LOCAL_DIR: 'uploads',
+      API_PUBLIC_URL: 'http://localhost:3001',
+    });
   });
 });
