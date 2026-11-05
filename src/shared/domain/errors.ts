@@ -2,7 +2,8 @@
  * Errores del dominio. No conocen HTTP: la capa de presentación los traduce
  * a respuestas (ver ProblemDetailsFilter).
  */
-export type DomainErrorKind = 'NOT_FOUND' | 'CONFLICT' | 'BUSINESS_RULE';
+export type DomainErrorKind =
+  'NOT_FOUND' | 'CONFLICT' | 'BUSINESS_RULE' | 'UNAUTHENTICATED' | 'FORBIDDEN';
 
 export abstract class DomainError extends Error {
   abstract readonly kind: DomainErrorKind;
@@ -34,6 +35,24 @@ export class ConflictError extends DomainError {
   override readonly kind = 'CONFLICT' as const;
 
   constructor(message: string, code = 'CONFLICT', details?: Record<string, unknown>) {
+    super(message, code, details);
+  }
+}
+
+/** No se pudo establecer quién hace la petición (credenciales o sesión inválidas). */
+export class AuthenticationError extends DomainError {
+  override readonly kind = 'UNAUTHENTICATED' as const;
+
+  constructor(message: string, code: string) {
+    super(message, code);
+  }
+}
+
+/** Se sabe quién hace la petición, pero no puede realizar la acción. */
+export class ForbiddenError extends DomainError {
+  override readonly kind = 'FORBIDDEN' as const;
+
+  constructor(message: string, code: string, details?: Record<string, unknown>) {
     super(message, code, details);
   }
 }

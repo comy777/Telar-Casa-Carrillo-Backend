@@ -23,12 +23,14 @@
 - [x] Definir manejo de errores (problem+json) y logging (pino con request id y ocultamiento de secretos).
 
 ## Fase 2 — Identidad y administración
-- Registro/login, recuperación y verificación de correo (`UserToken`, guardando solo el hash).
-- Aceptación registrada de términos y política de datos.
-- Refresh tokens con rotación y revocación de la familia si se reutiliza uno.
-- Roles/permisos en servidor.
-- Auditoría de cambios.
-- CRUD administrativo protegido.
+- [x] Registro/login, recuperación y verificación de correo (`UserToken`, guardando solo el hash).
+- [x] Aceptación registrada de términos y política de datos (fecha y versión).
+- [x] Refresh tokens con rotación y revocación de la familia si se reutiliza uno.
+- [x] Roles/permisos en servidor, leídos en cada petición (suspender o quitar un rol surte efecto de inmediato).
+- [x] Auditoría de cambios (`/admin/audit-logs`).
+- [x] Administración protegida: listar/buscar usuarios, suspender/reactivar, asignar roles, ver roles.
+- [ ] Pendiente para el frontend: páginas `/cuenta/verificar-correo` y `/cuenta/restablecer-contrasena` del storefront, que leen `?token=` y lo envían a la API.
+- [ ] Pendiente para producción: configurar SMTP real y revisar las plantillas de correo con el negocio.
 
 ## Fase 3 — Catálogo
 - Productos, variantes, categorías, artesanos y galerías.

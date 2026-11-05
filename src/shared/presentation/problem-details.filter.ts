@@ -28,6 +28,8 @@ const DOMAIN_STATUS: Record<DomainErrorKind, number> = {
   NOT_FOUND: HttpStatus.NOT_FOUND,
   CONFLICT: HttpStatus.CONFLICT,
   BUSINESS_RULE: HttpStatus.UNPROCESSABLE_ENTITY,
+  UNAUTHENTICATED: HttpStatus.UNAUTHORIZED,
+  FORBIDDEN: HttpStatus.FORBIDDEN,
 };
 
 const TITLES: Partial<Record<number, string>> = {

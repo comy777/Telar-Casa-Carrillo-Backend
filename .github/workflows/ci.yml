@@ -16,9 +16,24 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    services:
+      # Base de datos para las pruebas e2e (se crea vacía en cada ejecución).
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: telar_casa_carrillo_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci -d telar_casa_carrillo_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     env:
-      # Solo para validar/generar Prisma y arrancar las pruebas; no hay base de datos real.
-      DATABASE_URL: postgresql://ci:ci@localhost:5432/ci?schema=public
+      DATABASE_URL: postgresql://ci:ci@localhost:5432/telar_casa_carrillo_test?schema=public
+      TEST_DATABASE_URL: postgresql://ci:ci@localhost:5432/telar_casa_carrillo_test?schema=public
     steps:
       - uses: actions/checkout@v4
 

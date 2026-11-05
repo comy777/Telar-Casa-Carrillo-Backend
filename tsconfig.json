@@ -3,7 +3,9 @@
     "module": "commonjs",
     "moduleResolution": "node",
     "target": "ES2023",
-    "lib": ["ES2023"],
+    "lib": [
+      "ES2023"
+    ],
     "declaration": false,
     "removeComments": true,
     "emitDecoratorMetadata": true,
@@ -17,7 +19,6 @@
     "skipLibCheck": true,
     "resolveJsonModule": true,
     "forceConsistentCasingInFileNames": true,
-
     "strict": true,
     "noImplicitOverride": true,
     "noImplicitReturns": true,
@@ -27,5 +28,10 @@
     "noUnusedParameters": true,
     "exactOptionalPropertyTypes": false
   },
-  "include": ["src", "test"]
+  "include": [
+    "src",
+    "test",
+    "prisma",
+    "scripts"
+  ]
 }

@@ -2,6 +2,18 @@ import { validateEnv } from './env.schema';
 
 const base = {
   DATABASE_URL: 'postgresql://user:pass@localhost:5432/db?schema=public',
+  STOREFRONT_URL: 'http://localhost:3000',
+  JWT_ACCESS_SECRET: 'a-development-secret-with-32-chars!!',
+};
+
+const production = {
+  ...base,
+  NODE_ENV: 'production',
+  CORS_ORIGINS: 'https://telarcasacarrillo.co',
+  STOREFRONT_URL: 'https://telarcasacarrillo.co',
+  JWT_ACCESS_SECRET: 'Zq3kV9xLw2NfT8pR4sY7uB1mC6hJ0dGe5aKiOt',
+  SMTP_HOST: 'smtp.example.com',
+  EMAIL_FROM: 'Telar <no-reply@telarcasacarrillo.co>',
 };
 
 describe('validateEnv', () => {
@@ -41,6 +53,30 @@ describe('validateEnv', () => {
   });
 
   it('exige orígenes de CORS en producción', () => {
-    expect(() => validateEnv({ ...base, NODE_ENV: 'production' })).toThrow(/CORS_ORIGINS/);
+    expect(() => validateEnv({ ...production, CORS_ORIGINS: '' })).toThrow(/CORS_ORIGINS/);
+  });
+
+  it('acepta una configuración de producción completa', () => {
+    expect(validateEnv(production).NODE_ENV).toBe('production');
+  });
+
+  it('trata las variables vacías como no definidas', () => {
+    expect(validateEnv({ ...base, SMTP_HOST: '', SMTP_PORT: '' })).toMatchObject({
+      SMTP_HOST: undefined,
+      SMTP_PORT: undefined,
+    });
+  });
+
+  it('rechaza un secreto JWT corto', () => {
+    expect(() => validateEnv({ ...base, JWT_ACCESS_SECRET: 'corto' })).toThrow(/JWT_ACCESS_SECRET/);
+  });
+
+  it.each([
+    ['JWT_ACCESS_SECRET', 'replace_with_a_long_random_secret_of_at_least_32_chars'],
+    ['SMTP_HOST', ''],
+    ['EMAIL_FROM', ''],
+    ['STOREFRONT_URL', 'http://telarcasacarrillo.co'],
+  ])('en producción rechaza %s = "%s"', (key, value) => {
+    expect(() => validateEnv({ ...production, [key]: value })).toThrow(new RegExp(key));
   });
 });

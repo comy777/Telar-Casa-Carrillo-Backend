@@ -1,5 +1,11 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
-import { BusinessRuleViolation, ConflictError, NotFoundError } from '../domain/errors';
+import {
+  AuthenticationError,
+  BusinessRuleViolation,
+  ConflictError,
+  ForbiddenError,
+  NotFoundError,
+} from '../domain/errors';
 import { ProblemDetailsFilter } from './problem-details.filter';
 
 describe('ProblemDetailsFilter.toProblem', () => {
@@ -28,6 +34,17 @@ describe('ProblemDetailsFilter.toProblem', () => {
       status: 422,
       code: 'INSUFFICIENT_STOCK',
       details: { available: 0 },
+    });
+  });
+
+  it('traduce AuthenticationError a 401 y ForbiddenError a 403', () => {
+    expect(filter.toProblem(new AuthenticationError('x', 'INVALID_CREDENTIALS'))).toMatchObject({
+      status: 401,
+      code: 'INVALID_CREDENTIALS',
+    });
+    expect(filter.toProblem(new ForbiddenError('x', 'MISSING_PERMISSION'))).toMatchObject({
+      status: 403,
+      code: 'MISSING_PERMISSION',
     });
   });
 

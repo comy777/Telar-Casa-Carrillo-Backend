@@ -2,7 +2,7 @@
 
 API de la tienda en línea Telar Casa Carrillo: NestJS 11, PostgreSQL 16 y Prisma 6, organizada con Clean Architecture por módulos.
 
-Estado: **Fase 1 (fundaciones)** del [plan de implementación](docs/implementation-plan.md).
+Estado: **Fases 1 (fundaciones) y 2 (identidad y administración)** del [plan de implementación](docs/implementation-plan.md).
 
 ## Requisitos
 - Node.js 22 o superior (ver `.nvmrc`)
@@ -13,7 +13,10 @@ Estado: **Fase 1 (fundaciones)** del [plan de implementación](docs/implementati
    ```bash
    npm install
    ```
-2. Copiar `.env.example` a `.env` y ajustar valores locales.
+2. Copiar `.env.example` a `.env` y ajustar valores locales. Generar un `JWT_ACCESS_SECRET` propio:
+   ```bash
+   node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
+   ```
 3. Preparar PostgreSQL, con una de estas dos opciones:
    - **Docker:** `npm run db:up`
    - **PostgreSQL instalado en Windows:** crear el usuario y la base de datos una sola vez, con `psql` como superusuario. Usa la misma contraseña que pusiste en `DATABASE_URL`:
@@ -21,20 +24,50 @@ Estado: **Fase 1 (fundaciones)** del [plan de implementación](docs/implementati
      CREATE ROLE telar_app WITH LOGIN PASSWORD 'change_this_local_password' CREATEDB;
      CREATE DATABASE telar_casa_carrillo OWNER telar_app;
      ```
-     `CREATEDB` lo necesita `prisma migrate dev` para su base de datos temporal (shadow database).
-4. Aplicar las migraciones (la inicial ya incluye `prisma/sql/constraints.sql`):
+     `CREATEDB` lo necesitan `prisma migrate dev` (base temporal) y las pruebas e2e (`telar_casa_carrillo_test`).
+4. Aplicar las migraciones y crear los roles y permisos:
    ```bash
    npm run db:migrate
+   ```
+   ```bash
+   npm run db:seed
    ```
    Al crear migraciones nuevas, revisar el SQL antes de aplicarlo (`npm run db:migrate:create -- --name <nombre>`). Si Prisma intenta borrar los índices parciales o el de búsqueda, quitar esas líneas.
 5. Arrancar en modo desarrollo:
    ```bash
    npm run start:dev
    ```
+6. Crear el primer administrador: registrarse por la API (o el storefront), confirmar el correo y luego:
+   ```bash
+   npm run admin:grant -- tu-correo@ejemplo.com admin
+   ```
+
+Sin `SMTP_HOST` (solo fuera de producción) los correos se escriben en el log de la API, con el enlace de verificación o recuperación listo para copiar.
 
 - Salud: http://localhost:3001/api/health
 - Documentación OpenAPI: http://localhost:3001/api/docs (JSON en `/api/docs-json`; desactivada en producción)
 - Las rutas de negocio van bajo `/api/v1/...`.
+
+## Autenticación
+| Ruta | Qué hace |
+|---|---|
+| `POST /api/v1/auth/register` | Crea la cuenta (pendiente) y envía el correo de verificación |
+| `POST /api/v1/auth/verify-email` | Confirma el correo con `{ token }` |
+| `POST /api/v1/auth/resend-verification` | Reenvía la verificación |
+| `POST /api/v1/auth/login` | Devuelve `accessToken` (15 min) y deja el refresh token en una cookie `HttpOnly` |
+| `POST /api/v1/auth/refresh` | Nuevo `accessToken`; rota la cookie |
+| `POST /api/v1/auth/logout` | Cierra la sesión |
+| `POST /api/v1/auth/forgot-password` | Envía el enlace de recuperación |
+| `POST /api/v1/auth/reset-password` | Cambia la contraseña con `{ token, password }` y cierra todas las sesiones |
+| `GET /api/v1/auth/me` | Usuario, roles y permisos |
+
+Para el frontend:
+- Enviar el access token en `Authorization: Bearer <token>` y guardarlo solo en memoria.
+- Llamar a `/auth/refresh` con `credentials: 'include'` al cargar la página y cuando el token venza.
+- La cookie es `SameSite=Strict` y solo se envía a `/api/v1/auth`: storefront y API deben estar en el mismo sitio (p. ej. `tienda.com` y `api.tienda.com`).
+- Los enlaces de los correos apuntan a `STOREFRONT_URL` + `/cuenta/verificar-correo?token=…` y `/cuenta/restablecer-contrasena?token=…`.
+
+Toda ruta exige access token salvo las marcadas como públicas. La administración (`/api/v1/admin/...`) exige además permisos: `users:read`, `users:manage`, `roles:read` y `audit:read`. Los permisos y roles se definen en `src/modules/identity/domain/permissions.ts` y se sincronizan con `npm run db:seed`.
 
 ## Scripts
 | Script | Qué hace |
@@ -42,15 +75,20 @@ Estado: **Fase 1 (fundaciones)** del [plan de implementación](docs/implementati
 | `start:dev` | API con recarga automática |
 | `build` / `start` | Compila a `dist/` y ejecuta la versión compilada |
 | `lint`, `format`, `typecheck` | Calidad de código |
-| `test`, `test:e2e`, `test:cov` | Pruebas unitarias, e2e y cobertura |
-| `prisma:validate`, `prisma:generate` | Validar el esquema / regenerar el cliente |
+| `test`, `test:cov` | Pruebas unitarias y cobertura |
+| `test:e2e` | Pruebas e2e contra PostgreSQL real, en la base `telar_casa_carrillo_test` (se crea sola; `TEST_DATABASE_URL` la cambia) |
 | `db:up`, `db:migrate`, `db:migrate:create`, `db:migrate:deploy`, `db:studio` | Base de datos |
+| `db:seed` | Sincroniza roles y permisos (idempotente; ejecutar en cada despliegue) |
+| `admin:grant -- <correo> [rol]` | Asigna un rol a un usuario existente |
+| `prisma:validate`, `prisma:generate` | Validar el esquema / regenerar el cliente |
 
 ## Convenciones ya implementadas
-- **Configuración:** las variables de entorno se validan con Zod al arrancar (`src/shared/config/env.schema.ts`). Cada módulo nuevo agrega allí las suyas.
-- **Errores:** todas las respuestas de error usan `application/problem+json` (RFC 9457). Los errores de dominio (`NotFoundError`, `ConflictError`, `BusinessRuleViolation`) se traducen a 404, 409 y 422. Los errores inesperados devuelven 500 sin detalles internos.
+- **Configuración:** las variables de entorno se validan con Zod al arrancar (`src/shared/config/env.schema.ts`). En producción además se exige SMTP, HTTPS en la tienda y un secreto JWT que no sea el de ejemplo.
+- **Errores:** todas las respuestas de error usan `application/problem+json` (RFC 9457) con un `code` estable. Los errores de dominio se traducen a 401, 403, 404, 409 y 422. Los errores inesperados devuelven 500 sin detalles internos.
 - **Logs:** JSON con pino, `x-request-id` por petición y ocultamiento de contraseñas, tokens y cookies.
-- **Seguridad HTTP:** Helmet, CORS por lista de orígenes, límite de 1 MB en el cuerpo, límite de peticiones global y `ValidationPipe` que rechaza campos no declarados.
+- **Seguridad HTTP:** Helmet, CORS por lista de orígenes, límite de 1 MB en el cuerpo, límite de peticiones global (120/min) y estricto en login, registro y recuperación (5/min), y `ValidationPipe` que rechaza campos no declarados.
+- **Contraseñas:** Argon2id (parámetros OWASP), mínimo 10 caracteres sin reglas de símbolos. El login calcula el hash aunque el correo no exista, para no revelar por el tiempo de respuesta qué cuentas existen.
+- **Auditoría:** el puerto `AUDIT_TRAIL` está disponible en todos los módulos; registro, inicio de sesión (exitoso y fallido), verificación, recuperación, reutilización de sesión y acciones de administración ya quedan registrados.
 - **Transacciones:** los casos de uso dependen del puerto `UnitOfWork`. Los repositorios Prisma usan `PrismaClientProvider.client`, que devuelve la transacción activa cuando la hay.
 - **Webhooks:** `rawBody` está activo para poder verificar firmas de las pasarelas.
 
