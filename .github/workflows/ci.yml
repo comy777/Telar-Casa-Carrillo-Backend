@@ -1,0 +1,83 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      # Base de datos para las pruebas e2e (se crea vacía en cada ejecución).
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: telar_casa_carrillo_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci -d telar_casa_carrillo_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://ci:ci@localhost:5432/telar_casa_carrillo_test?schema=public
+      TEST_DATABASE_URL: postgresql://ci:ci@localhost:5432/telar_casa_carrillo_test?schema=public
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Validar esquema Prisma
+        run: npm run prisma:validate
+
+      - name: Formato
+        run: npm run format:check
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Tipos
+        run: npm run typecheck
+
+      - name: Pruebas unitarias
+        run: npm test -- --ci
+
+      - name: Pruebas e2e
+        run: npm run test:e2e -- --ci
+
+      - name: Compilar
+        run: npm run build
+
+  # La imagen de producción debe poder construirse en cada cambio.
+  docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: verify
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Construir la imagen
+        run: docker build --tag telar-casa-carrillo-api:ci .
+
+      - name: La imagen arranca sus herramientas
+        run: |
+          docker run --rm telar-casa-carrillo-api:ci node -e "require('@prisma/client'); console.log('ok')"
+          docker run --rm telar-casa-carrillo-api:ci npx prisma --version
