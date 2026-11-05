@@ -1,0 +1,680 @@
+// Escrito para Prisma 6.x (ver README). En Prisma 7+ la URL de conexión se
+// configura en prisma.config.ts y el generador recomendado es "prisma-client".
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Las restricciones CHECK, índices únicos parciales y el índice de búsqueda
+// están en prisma/sql/constraints.sql: agrégalos a la primera migración.
+
+enum UserStatus {
+  ACTIVE
+  PENDING_VERIFICATION
+  SUSPENDED
+}
+
+enum ProductStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
+// Un reembolso parcial no cambia el estado del pedido (se refleja en Payment).
+enum OrderStatus {
+  PENDING_PAYMENT
+  PAID
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentStatus {
+  PENDING
+  APPROVED
+  DECLINED
+  VOIDED
+  PARTIALLY_REFUNDED
+  REFUNDED
+  ERROR
+}
+
+enum RefundStatus {
+  PENDING
+  APPROVED
+  FAILED
+}
+
+enum ShipmentStatus {
+  PENDING
+  READY
+  IN_TRANSIT
+  DELIVERED
+  FAILED
+  RETURNED
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED_AMOUNT
+}
+
+enum UserTokenPurpose {
+  EMAIL_VERIFICATION
+  PASSWORD_RESET
+}
+
+// Tipos de documento usados en Colombia (facturación electrónica y PSE).
+enum IdentityDocumentType {
+  CC   // Cédula de ciudadanía
+  CE   // Cédula de extranjería
+  NIT
+  PP   // Pasaporte
+  PPT  // Permiso por protección temporal
+  TI   // Tarjeta de identidad
+}
+enum InventoryMovementType {
+  IN
+  OUT
+  RESERVE
+  RELEASE
+  ADJUSTMENT
+}
+
+model User {
+  id              String       @id @default(uuid()) @db.Uuid
+  email           String       @unique
+  passwordHash    String
+  firstName       String
+  lastName        String
+  phone           String?
+  documentType    IdentityDocumentType?
+  documentNumber  String?
+  status          UserStatus   @default(PENDING_VERIFICATION)
+  emailVerifiedAt DateTime?
+  // Ley 1581 de 2012 (habeas data): evidencia de aceptación y versión aceptada.
+  termsAcceptedAt         DateTime?
+  privacyPolicyAcceptedAt DateTime?
+  privacyPolicyVersion    String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  roles           UserRole[]
+  addresses       Address[]
+  carts           Cart[]
+  orders          Order[]
+  refreshTokens   RefreshToken[]
+  tokens          UserToken[]
+  couponRedemptions CouponRedemption[]
+  orderStatusChanges OrderStatusHistory[] @relation("OrderStatusActor")
+  auditLogs       AuditLog[]   @relation("AuditActor")
+  artisan         Artisan?
+  @@index([status])
+}
+
+// Tokens de un solo uso: verificación de correo y recuperación de contraseña.
+model UserToken {
+  id        String           @id @default(uuid()) @db.Uuid
+  userId    String           @db.Uuid
+  purpose   UserTokenPurpose
+  tokenHash String           @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime         @default(now())
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId, purpose, expiresAt])
+}
+
+model Role {
+  id          String       @id @default(uuid()) @db.Uuid
+  name        String       @unique
+  description String?
+  users       UserRole[]
+  permissions RolePermission[]
+}
+
+model Permission {
+  id          String       @id @default(uuid()) @db.Uuid
+  key         String       @unique
+  description String?
+  roles       RolePermission[]
+}
+
+model UserRole {
+  userId String @db.Uuid
+  roleId String @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role   Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  @@id([userId, roleId])
+}
+
+model RolePermission {
+  roleId       String     @db.Uuid
+  permissionId String     @db.Uuid
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  @@id([roleId, permissionId])
+}
+
+// Rotación con detección de reutilización: todos los tokens de una misma sesión
+// comparten familyId; si se presenta un token ya rotado, se revoca la familia.
+model RefreshToken {
+  id                String    @id @default(uuid()) @db.Uuid
+  userId            String    @db.Uuid
+  familyId          String    @db.Uuid
+  tokenHash         String    @unique
+  replacedByTokenId String?   @db.Uuid
+  expiresAt         DateTime
+  revokedAt         DateTime?
+  createdAt         DateTime  @default(now())
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId, expiresAt])
+  @@index([familyId])
+}
+
+model Address {
+  id           String   @id @default(uuid()) @db.Uuid
+  userId       String   @db.Uuid
+  label        String?
+  recipient    String
+  phone        String
+  line1        String
+  line2        String?
+  city         String
+  department   String
+  // Código DANE del municipio (5 dígitos); lo exigen la mayoría de transportadoras.
+  cityDaneCode String?  @db.VarChar(5)
+  postalCode   String?
+  countryCode  String   @default("CO")
+  // Solo una dirección por defecto por usuario (índice parcial en constraints.sql).
+  isDefault    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId])
+}
+
+model Artisan {
+  id          String    @id @default(uuid()) @db.Uuid
+  userId      String?   @unique @db.Uuid
+  name        String
+  slug        String    @unique
+  biography   String?
+  story       String?
+  photoUrl    String?
+  isFeatured  Boolean   @default(false)
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  user        User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  products    Product[]
+}
+
+model Category {
+  id          String     @id @default(uuid()) @db.Uuid
+  parentId    String?    @db.Uuid
+  name        String
+  slug        String     @unique
+  description String?
+  imageUrl    String?
+  isActive    Boolean    @default(true)
+  sortOrder   Int        @default(0)
+  parent      Category?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children    Category[] @relation("CategoryTree")
+  products    ProductCategory[]
+  @@index([parentId, isActive])
+}
+
+// Todo producto tiene al menos una variante (una "por defecto" si no hay opciones).
+// El precio, el inventario y el SKU vendible viven en ProductVariant;
+// Product.sku es solo la referencia base del producto.
+model Product {
+  id             String       @id @default(uuid()) @db.Uuid
+  artisanId      String?      @db.Uuid
+  name           String
+  slug           String       @unique
+  sku            String       @unique
+  shortDescription String?
+  description    String
+  status         ProductStatus @default(DRAFT)
+  // Tarifa de IVA aplicable (0.19 = 19 %). Confirmar con el contador por producto.
+  taxRate        Decimal      @default(0.19) @db.Decimal(5, 4)
+  isFeatured     Boolean      @default(false)
+  seoTitle       String?
+  seoDescription String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  artisan        Artisan?     @relation(fields: [artisanId], references: [id], onDelete: SetNull)
+  categories     ProductCategory[]
+  images         ProductImage[]
+  variants       ProductVariant[]
+  materials      ProductMaterial[]
+  orderItems     OrderItem[]
+  @@index([status, isFeatured, createdAt])
+}
+
+model ProductCategory {
+  productId  String   @db.Uuid
+  categoryId String   @db.Uuid
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  @@id([productId, categoryId])
+}
+
+model ProductImage {
+  id        String   @id @default(uuid()) @db.Uuid
+  productId String   @db.Uuid
+  // Opcional: imagen específica de una variante (p. ej. un color).
+  variantId String?  @db.Uuid
+  url       String
+  publicId  String?
+  altText   String?
+  sortOrder Int      @default(0)
+  // Solo una imagen principal por producto (índice parcial en constraints.sql).
+  isPrimary Boolean  @default(false)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  variant   ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+  @@index([productId, sortOrder])
+  @@index([variantId])
+}
+
+model ProductVariant {
+  id          String      @id @default(uuid()) @db.Uuid
+  productId   String      @db.Uuid
+  name        String
+  sku         String      @unique
+  attributes  Json?
+  price       Decimal     @db.Decimal(12, 2)
+  compareAtPrice Decimal? @db.Decimal(12, 2)
+  currency    String      @default("COP") @db.VarChar(3)
+  isActive    Boolean     @default(true)
+  product     Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  images      ProductImage[]
+  inventory   Inventory?
+  cartItems   CartItem[]
+  orderItems  OrderItem[]
+  movements   InventoryMovement[]
+  reservations StockReservation[]
+  @@index([productId, isActive])
+}
+
+model Material {
+  id        String            @id @default(uuid()) @db.Uuid
+  name      String            @unique
+  products  ProductMaterial[]
+}
+
+model ProductMaterial {
+  productId  String  @db.Uuid
+  materialId String  @db.Uuid
+  product    Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  material   Material @relation(fields: [materialId], references: [id], onDelete: Restrict)
+  @@id([productId, materialId])
+}
+
+model Inventory {
+  id               String         @id @default(uuid()) @db.Uuid
+  variantId        String         @unique @db.Uuid
+  quantityOnHand   Int            @default(0)
+  quantityReserved Int            @default(0)
+  lowStockThreshold Int           @default(3)
+  updatedAt        DateTime       @updatedAt
+  variant          ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+}
+
+// quantity siempre es positiva; el sentido lo da `type`
+// (ADJUSTMENT usa `reason` para explicar si suma o resta).
+model InventoryMovement {
+  id          String                @id @default(uuid()) @db.Uuid
+  variantId   String                @db.Uuid
+  type        InventoryMovementType
+  quantity    Int
+  reason      String?
+  // Origen del movimiento, p. ej. "order", "reservation", "manual".
+  referenceType String?
+  referenceId String?
+  createdAt   DateTime              @default(now())
+  variant     ProductVariant        @relation(fields: [variantId], references: [id], onDelete: Restrict)
+  @@index([variantId, createdAt])
+}
+
+// Se crea al iniciar el checkout (no al agregar al carrito). Un proceso programado
+// libera las vencidas. Una reserva activa debe apuntar a un carrito o a un pedido
+// (CHECK en constraints.sql): libérala antes de borrar el carrito.
+model StockReservation {
+  id          String         @id @default(uuid()) @db.Uuid
+  variantId   String         @db.Uuid
+  cartId      String?        @db.Uuid
+  orderId     String?        @db.Uuid
+  quantity    Int
+  expiresAt   DateTime
+  releasedAt  DateTime?
+  createdAt   DateTime       @default(now())
+  variant     ProductVariant @relation(fields: [variantId], references: [id], onDelete: Restrict)
+  cart        Cart?          @relation(fields: [cartId], references: [id], onDelete: SetNull)
+  order       Order?         @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  @@index([variantId, expiresAt, releasedAt])
+}
+
+// Debe tener userId o guestKey (CHECK en constraints.sql).
+model Cart {
+  id        String     @id @default(uuid()) @db.Uuid
+  userId    String?    @db.Uuid
+  guestKey  String?    @unique
+  expiresAt DateTime?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  user      User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items     CartItem[]
+  reservations StockReservation[]
+  @@index([userId, updatedAt])
+}
+
+model CartItem {
+  id        String         @id @default(uuid()) @db.Uuid
+  cartId    String         @db.Uuid
+  variantId String         @db.Uuid
+  quantity  Int
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  cart      Cart           @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  variant   ProductVariant @relation(fields: [variantId], references: [id], onDelete: Restrict)
+  @@unique([cartId, variantId])
+  @@index([cartId])
+}
+
+model Coupon {
+  id              String       @id @default(uuid()) @db.Uuid
+  code            String       @unique
+  discountType    DiscountType
+  value           Decimal      @db.Decimal(12, 2)
+  minimumSubtotal Decimal?     @db.Decimal(12, 2)
+  maxDiscount     Decimal?     @db.Decimal(12, 2)
+  usageLimit      Int?
+  // Caché de lectura; la fuente de verdad son las filas de CouponRedemption.
+  usageCount      Int          @default(0)
+  perCustomerLimit Int?
+  startsAt        DateTime?
+  expiresAt       DateTime?
+  isActive        Boolean      @default(true)
+  orders          Order[]
+  redemptions     CouponRedemption[]
+}
+
+// Un uso de cupón por pedido. Insertar dentro de la misma transacción que crea
+// el pedido y contar las filas (con bloqueo del cupón) para respetar los límites.
+model CouponRedemption {
+  id            String   @id @default(uuid()) @db.Uuid
+  couponId      String   @db.Uuid
+  orderId       String   @unique @db.Uuid
+  userId        String?  @db.Uuid
+  customerEmail String
+  createdAt     DateTime @default(now())
+  coupon        Coupon   @relation(fields: [couponId], references: [id], onDelete: Restrict)
+  order         Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  user          User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  @@index([couponId, customerEmail])
+}
+
+model Order {
+  id                 String       @id @default(uuid()) @db.Uuid
+  // Generar desde una secuencia de PostgreSQL (p. ej. "TCC-000123"), nunca aleatorio en el cliente.
+  orderNumber        String       @unique
+  userId             String?      @db.Uuid
+  couponId           String?      @db.Uuid
+  status             OrderStatus  @default(PENDING_PAYMENT)
+  currency           String       @default("COP") @db.VarChar(3)
+  subtotal           Decimal      @db.Decimal(12, 2)
+  discountTotal      Decimal      @default(0) @db.Decimal(12, 2)
+  shippingTotal      Decimal      @default(0) @db.Decimal(12, 2)
+  taxTotal           Decimal      @default(0) @db.Decimal(12, 2)
+  grandTotal         Decimal      @db.Decimal(12, 2)
+  customerEmail      String
+  customerName       String
+  customerPhone      String?
+  // Requeridos para factura electrónica DIAN y pagos PSE.
+  customerDocumentType   IdentityDocumentType?
+  customerDocumentNumber String?
+  shippingAddressSnapshot Json
+  billingAddressSnapshot  Json?
+  notes              String?
+  // Factura electrónica (DIAN): número y CUFE devueltos por el proveedor de facturación.
+  invoiceNumber      String?      @unique
+  invoiceCufe        String?      @unique
+  invoicedAt         DateTime?
+  paidAt             DateTime?
+  cancelledAt        DateTime?
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+  user               User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  coupon             Coupon?      @relation(fields: [couponId], references: [id], onDelete: SetNull)
+  couponRedemption   CouponRedemption?
+  items              OrderItem[]
+  payments            Payment[]
+  statusHistory       OrderStatusHistory[]
+  shipments           Shipment[]
+  reservations        StockReservation[]
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+}
+
+model OrderItem {
+  id              String         @id @default(uuid()) @db.Uuid
+  orderId         String         @db.Uuid
+  productId       String?        @db.Uuid
+  variantId       String?        @db.Uuid
+  productName     String
+  variantName     String?
+  sku             String
+  unitPrice       Decimal        @db.Decimal(12, 2)
+  quantity        Int
+  discountTotal   Decimal        @default(0) @db.Decimal(12, 2)
+  lineTotal       Decimal        @db.Decimal(12, 2)
+  productSnapshot Json
+  order           Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product         Product?       @relation(fields: [productId], references: [id], onDelete: SetNull)
+  variant         ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+  @@index([orderId])
+}
+
+model OrderStatusHistory {
+  id        String      @id @default(uuid()) @db.Uuid
+  orderId   String      @db.Uuid
+  from      OrderStatus?
+  to        OrderStatus
+  // null cuando el cambio lo hace el sistema (p. ej. un webhook de pago).
+  actorId   String?     @db.Uuid
+  note      String?
+  createdAt DateTime    @default(now())
+  order     Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  actor     User?       @relation("OrderStatusActor", fields: [actorId], references: [id], onDelete: SetNull)
+  @@index([orderId, createdAt])
+}
+
+model Payment {
+  id                String        @id @default(uuid()) @db.Uuid
+  orderId           String        @db.Uuid
+  provider          String
+  providerReference String?
+  status            PaymentStatus @default(PENDING)
+  amount            Decimal       @db.Decimal(12, 2)
+  currency          String        @default("COP") @db.VarChar(3)
+  idempotencyKey    String        @unique
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  order             Order         @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  transactions      PaymentTransaction[]
+  refunds           Refund[]
+  webhookEvents     WebhookEvent[]
+  @@index([orderId, createdAt])
+  @@unique([provider, providerReference])
+}
+
+// Cambios de estado de un pago ya asociado (historial, no se modifica).
+model PaymentTransaction {
+  id                String   @id @default(uuid()) @db.Uuid
+  paymentId         String   @db.Uuid
+  provider          String
+  providerEventId   String?
+  eventType         String
+  status            PaymentStatus?
+  payload           Json?
+  processedAt       DateTime?
+  createdAt         DateTime @default(now())
+  payment           Payment  @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  @@unique([provider, providerEventId])
+  @@index([paymentId, createdAt])
+}
+
+// Registro crudo de toda notificación recibida, se pueda asociar a un pago o no.
+// Se guarda antes de procesar; la unicidad por proveedor garantiza la idempotencia.
+model WebhookEvent {
+  id              String    @id @default(uuid()) @db.Uuid
+  provider        String
+  providerEventId String
+  eventType       String
+  signatureValid  Boolean
+  payload         Json
+  paymentId       String?   @db.Uuid
+  receivedAt      DateTime  @default(now())
+  processedAt     DateTime?
+  processingError String?
+  payment         Payment?  @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  @@unique([provider, providerEventId])
+  @@index([processedAt, receivedAt])
+}
+
+// Admite reembolsos parciales: la suma de reembolsos APPROVED no puede superar
+// Payment.amount (validar en dominio). Nunca se modifica el Payment original.
+model Refund {
+  id                String       @id @default(uuid()) @db.Uuid
+  paymentId         String       @db.Uuid
+  providerReference String?
+  status            RefundStatus @default(PENDING)
+  amount            Decimal      @db.Decimal(12, 2)
+  reason            String?
+  idempotencyKey    String       @unique
+  // Administrador que solicitó el reembolso.
+  requestedById     String?      @db.Uuid
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  payment           Payment      @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  @@index([paymentId])
+}
+
+model ShippingMethod {
+  id          String     @id @default(uuid()) @db.Uuid
+  name        String
+  description String?
+  basePrice   Decimal    @db.Decimal(12, 2)
+  isActive    Boolean    @default(true)
+  shipments   Shipment[]
+}
+
+model Shipment {
+  id                String         @id @default(uuid()) @db.Uuid
+  orderId           String         @db.Uuid
+  shippingMethodId  String?        @db.Uuid
+  status            ShipmentStatus @default(PENDING)
+  carrier           String?
+  trackingNumber    String?
+  shippedAt         DateTime?
+  deliveredAt       DateTime?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  order             Order          @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  shippingMethod    ShippingMethod? @relation(fields: [shippingMethodId], references: [id], onDelete: SetNull)
+  events            ShippingTrackingEvent[]
+  @@index([orderId])
+  @@index([trackingNumber])
+}
+
+model ShippingTrackingEvent {
+  id          String   @id @default(uuid()) @db.Uuid
+  shipmentId  String   @db.Uuid
+  status      ShipmentStatus
+  // Estado tal como lo reporta la transportadora, antes de mapearlo.
+  carrierStatus String?
+  description String?
+  occurredAt  DateTime
+  createdAt   DateTime @default(now())
+  shipment    Shipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  @@index([shipmentId, occurredAt])
+}
+
+model Banner {
+  id          String   @id @default(uuid()) @db.Uuid
+  title       String
+  subtitle    String?
+  imageUrl    String
+  targetUrl   String?
+  isActive    Boolean  @default(true)
+  startsAt    DateTime?
+  endsAt      DateTime?
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Page {
+  id          String   @id @default(uuid()) @db.Uuid
+  title       String
+  slug        String   @unique
+  content     Json
+  isPublished Boolean  @default(false)
+  publishedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Testimonial {
+  id          String   @id @default(uuid()) @db.Uuid
+  customerName String
+  content     String
+  rating      Int?
+  isPublished Boolean @default(false)
+  createdAt   DateTime @default(now())
+  @@index([isPublished, createdAt])
+}
+
+model Faq {
+  id          String   @id @default(uuid()) @db.Uuid
+  question    String
+  answer      String
+  isPublished Boolean  @default(false)
+  sortOrder   Int      @default(0)
+}
+
+model NewsletterSubscriber {
+  id          String   @id @default(uuid()) @db.Uuid
+  email       String   @unique
+  consentAt   DateTime
+  unsubscribedAt DateTime?
+  createdAt   DateTime @default(now())
+}
+
+model StoreSetting {
+  id        String   @id @default(uuid()) @db.Uuid
+  key       String   @unique
+  value     Json
+  updatedAt DateTime @updatedAt
+}
+
+model AuditLog {
+  id          String   @id @default(uuid()) @db.Uuid
+  actorId     String?  @db.Uuid
+  action      String
+  resource    String
+  resourceId  String?
+  metadata    Json?
+  ipAddress   String?
+  createdAt   DateTime @default(now())
+  actor       User?    @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+  @@index([actorId, createdAt])
+  @@index([resource, resourceId])
+}
