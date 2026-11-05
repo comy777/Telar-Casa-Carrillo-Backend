@@ -53,12 +53,23 @@
 - [x] La tienda muestra la disponibilidad (`availability`) y filtra con `inStock=true`.
 
 ## Fase 5 — Pedidos y checkout
-- Dirección (con código DANE), método y costo de envío.
-- Datos del comprador para facturación: tipo y número de documento.
-- Cálculo de IVA y cupones según reglas definidas; uso del cupón registrado en la misma transacción.
-- Snapshot de productos, cliente y dirección.
-- Creación transaccional del pedido con número desde secuencia.
-- Emisión de factura electrónica al confirmarse el pago, detrás de un puerto `ElectronicInvoiceIssuer`.
+- [x] Direcciones en Colombia con código DANE (el departamento se deduce de él) y libreta de direcciones del cliente (`/account/addresses`).
+- [x] Métodos de envío con costo base y envío gratis desde un subtotal (`/shipping/methods`; administración en `/admin/shipping-methods`).
+- [x] Datos del comprador para facturación: tipo y número de documento. Sin ellos, la factura va a consumidor final.
+- [x] IVA incluido en los precios y desglosado por línea, también el del envío (`SHIPPING_TAX_RATE`).
+- [x] Cupones de porcentaje (con tope) o de monto fijo, con vigencia, mínimo, límite global y límite por cliente. El cupón se bloquea (`FOR UPDATE`) y su uso se registra en la misma transacción que crea el pedido.
+- [x] Snapshot de productos, cliente y dirección en el pedido.
+- [x] Creación transaccional del pedido (`POST /checkout/orders`):
+  - Revalida el carrito.
+  - Aparta el stock hasta el plazo de pago (`ORDER_PAYMENT_MINUTES`).
+  - Toma el número `TCC-000123` de una secuencia de PostgreSQL.
+  - Vacía el carrito y envía la confirmación.
+  - Antes de confirmar, `POST /checkout/quote` muestra los totales.
+- [x] Los pedidos sin pagar que vencen se cancelan solos y devuelven el stock y el uso del cupón.
+- [x] Consulta de pedidos con sesión (`/account/orders`) o como invitado, con el token del correo (`/orders/:numero?token=`).
+- [x] Administración (`/admin/orders`): filtros, avance de estados según la tabla de transiciones y registro manual de la factura.
+- [x] Puerto `ElectronicInvoiceIssuer`. Sin proveedor configurado, la factura queda pendiente para registrarla a mano (filtro `invoicePending`).
+- [ ] Pendiente: el adaptador del proveedor tecnológico de facturación, cuando se contrate (Fase 0).
 
 ## Fase 6 — Pagos
 - Integrar primero sandbox de un proveedor.

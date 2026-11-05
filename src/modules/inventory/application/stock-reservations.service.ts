@@ -151,6 +151,95 @@ export class StockReservations {
     return released;
   }
 
+  /** Al crear el pedido, lo apartado por el carrito pasa a ser del pedido. */
+  async transferCartToOrder(cartId: string, orderId: string, paymentDueAt: Date): Promise<void> {
+    await this.reservations.transferToOrder(cartId, orderId, paymentDueAt);
+  }
+
+  /** Pedido cancelado o vencido sin pagar: el stock vuelve a estar disponible. */
+  releaseForOrder(orderId: string, reason: ReleaseReason): Promise<number> {
+    return this.unitOfWork.execute(async () => {
+      let released = 0;
+      for (const reservation of await this.reservations.activeForOrder(orderId)) {
+        if (await this.release(reservation, reason)) released += 1;
+      }
+      return released;
+    });
+  }
+
+  /**
+   * Pago confirmado: las unidades apartadas salen del inventario (movimiento OUT).
+   * Si la reserva ya no estaba (p. ej. el pago llegó tarde), intenta tomar el
+   * stock disponible; devuelve las líneas que no alcanzaron para que el pago
+   * se revise o se reembolse.
+   */
+  consumeForOrder(orderId: string, lines: ReservationLine[]): Promise<ShortLine[]> {
+    return this.unitOfWork.execute(async () => {
+      const reserved = new Map<string, number>();
+      for (const reservation of await this.reservations.activeForOrder(orderId)) {
+        if (!(await this.reservations.markReleased(reservation.id, this.clock.now()))) continue;
+        reserved.set(
+          reservation.variantId,
+          (reserved.get(reservation.variantId) ?? 0) + reservation.quantity,
+        );
+      }
+      const short: ShortLine[] = [];
+      for (const line of normalizeReservationLines(lines)) {
+        const fromReservation = Math.min(reserved.get(line.variantId) ?? 0, line.quantity);
+        const missing = line.quantity - fromReservation;
+        // Lo que falta se intenta apartar en el momento (mismo UPDATE condicional).
+        if (missing > 0 && !(await this.inventory.tryReserve(line.variantId, missing))) {
+          const level = (await this.inventory.levels([line.variantId])).get(line.variantId);
+          short.push({
+            variantId: line.variantId,
+            requested: line.quantity,
+            available: availableQuantity(level) + fromReservation,
+          });
+          const held = reserved.get(line.variantId) ?? 0;
+          if (held > 0) await this.inventory.releaseReserved(line.variantId, held);
+          reserved.delete(line.variantId);
+          continue;
+        }
+        const after = await this.inventory.consume(line.variantId, line.quantity);
+        await this.inventory.recordMovement({
+          variantId: line.variantId,
+          type: 'OUT',
+          quantity: line.quantity,
+          after,
+          reason: 'sale',
+          referenceType: 'order',
+          referenceId: orderId,
+        });
+        const leftover = (reserved.get(line.variantId) ?? 0) - fromReservation;
+        if (leftover > 0) await this.inventory.releaseReserved(line.variantId, leftover);
+        reserved.delete(line.variantId);
+      }
+      // Reservas de variantes que no están en las líneas (no debería ocurrir).
+      for (const [variantId, quantity] of reserved) {
+        await this.inventory.releaseReserved(variantId, quantity);
+      }
+      return short;
+    });
+  }
+
+  /** Devolución o cancelación después del pago: las unidades vuelven al inventario. */
+  restockForOrder(orderId: string, lines: ReservationLine[], reason: string): Promise<void> {
+    return this.unitOfWork.execute(async () => {
+      for (const line of normalizeReservationLines(lines)) {
+        const after = await this.inventory.receive(line.variantId, line.quantity);
+        await this.inventory.recordMovement({
+          variantId: line.variantId,
+          type: 'IN',
+          quantity: line.quantity,
+          after,
+          reason,
+          referenceType: 'order',
+          referenceId: orderId,
+        });
+      }
+    });
+  }
+
   private async release(reservation: ReservationRecord, reason: ReleaseReason): Promise<boolean> {
     if (!(await this.reservations.markReleased(reservation.id, this.clock.now()))) return false;
     const after = await this.inventory.releaseReserved(reservation.variantId, reservation.quantity);

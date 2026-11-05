@@ -48,6 +48,6 @@ import { GuestCartCleanupJob } from './presentation/guest-cart-cleanup.job';
     CartService,
     GuestCartCleanupJob,
   ],
-  exports: [CartService],
+  exports: [CartService, SECURE_CART_COOKIE, GUEST_CART_TTL_DAYS],
 })
 export class CartModule {}

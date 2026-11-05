@@ -116,6 +116,18 @@ export class PrismaInventoryRepository implements InventoryRepository {
     return row;
   }
 
+  async consume(variantId: string, quantity: number): Promise<StockRecord> {
+    const [row] = await this.db.client.$queryRaw<StockRecord[]>`
+      UPDATE "Inventory"
+      SET "quantityOnHand" = "quantityOnHand" - ${quantity},
+          "quantityReserved" = "quantityReserved" - ${quantity},
+          "updatedAt" = now()
+      WHERE "variantId" = ${variantId}::uuid
+      ${RETURNING}`;
+    if (!row) throw new Error(`No hay inventario para la variante ${variantId}`);
+    return row;
+  }
+
   async recordMovement(movement: NewMovement): Promise<void> {
     await this.db.client.inventoryMovement.create({
       data: {
@@ -250,6 +262,22 @@ export class PrismaReservationRepository implements ReservationRepository {
     });
   }
 
+  activeForOrder(orderId: string): Promise<ReservationRecord[]> {
+    return this.db.client.stockReservation.findMany({
+      where: { orderId, releasedAt: null },
+      select: { id: true, variantId: true, cartId: true, quantity: true, expiresAt: true },
+      orderBy: { variantId: 'asc' },
+    });
+  }
+
+  async transferToOrder(cartId: string, orderId: string, expiresAt: Date): Promise<number> {
+    const result = await this.db.client.stockReservation.updateMany({
+      where: { cartId, releasedAt: null },
+      data: { cartId: null, orderId, expiresAt },
+    });
+    return result.count;
+  }
+
   async markReleased(id: string, now: Date): Promise<boolean> {
     const result = await this.db.client.stockReservation.updateMany({
       where: { id, releasedAt: null },
@@ -260,7 +288,7 @@ export class PrismaReservationRepository implements ReservationRepository {
 
   findExpired(now: Date, limit: number): Promise<ReservationRecord[]> {
     return this.db.client.stockReservation.findMany({
-      where: { releasedAt: null, expiresAt: { lte: now } },
+      where: { releasedAt: null, orderId: null, expiresAt: { lte: now } },
       select: { id: true, variantId: true, cartId: true, quantity: true, expiresAt: true },
       orderBy: { expiresAt: 'asc' },
       take: limit,

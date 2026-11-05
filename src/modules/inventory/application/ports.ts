@@ -68,6 +68,8 @@ export interface InventoryRepository {
   /** Aparta unidades solo si hay suficientes disponibles; null si no. */
   tryReserve(variantId: string, quantity: number): Promise<StockRecord | null>;
   releaseReserved(variantId: string, quantity: number): Promise<StockRecord>;
+  /** Venta confirmada: descuenta de existencias lo que estaba apartado. */
+  consume(variantId: string, quantity: number): Promise<StockRecord>;
   recordMovement(movement: NewMovement): Promise<void>;
   movements(variantId: string, page: PageRequest): Promise<Page<MovementView>>;
   list(query: InventoryListQuery): Promise<Page<InventoryItemView>>;
@@ -86,11 +88,15 @@ export interface ReservationRecord {
 export interface ReservationRepository {
   create(reservation: ReservationRecord & { cartId: string }): Promise<void>;
   activeForCart(cartId: string): Promise<ReservationRecord[]>;
+  activeForOrder(orderId: string): Promise<ReservationRecord[]>;
+  /** Pasa las reservas activas del carrito al pedido, con el vencimiento del pago. */
+  transferToOrder(cartId: string, orderId: string, expiresAt: Date): Promise<number>;
   /**
    * Marca la reserva como liberada solo si seguía activa. Devuelve false si
    * otro proceso ya la liberó (así nunca se devuelve stock dos veces).
    */
   markReleased(id: string, now: Date): Promise<boolean>;
+  /** Solo reservas de carrito: las de pedidos vencen con el pedido (ver OrderExpiryJob). */
   findExpired(now: Date, limit: number): Promise<ReservationRecord[]>;
 }
 export const RESERVATION_REPOSITORY = Symbol('ReservationRepository');

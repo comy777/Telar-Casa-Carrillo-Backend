@@ -6,7 +6,13 @@ export const MAX_LOW_STOCK_THRESHOLD = 10_000;
 export type MovementType = 'IN' | 'OUT' | 'RESERVE' | 'RELEASE' | 'ADJUSTMENT';
 
 /** Por qué se libera una reserva (queda en el movimiento RELEASE). */
-export type ReleaseReason = 'expired' | 'cart_changed' | 'checkout_cancelled' | 'cart_deleted';
+export type ReleaseReason =
+  | 'expired'
+  | 'cart_changed'
+  | 'checkout_cancelled'
+  | 'cart_deleted'
+  | 'order_cancelled'
+  | 'order_expired';
 
 export interface ReservationLine {
   variantId: string;

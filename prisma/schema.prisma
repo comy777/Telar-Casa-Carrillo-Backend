@@ -413,6 +413,8 @@ model Coupon {
   startsAt        DateTime?
   expiresAt       DateTime?
   isActive        Boolean      @default(true)
+  description     String?
+  createdAt       DateTime     @default(now())
   orders          Order[]
   redemptions     CouponRedemption[]
 }
@@ -454,6 +456,14 @@ model Order {
   shippingAddressSnapshot Json
   billingAddressSnapshot  Json?
   notes              String?
+  shippingMethodId   String?      @db.Uuid
+  // Hash del token con que un invitado consulta su pedido (enlace del correo).
+  guestAccessTokenHash String?    @unique
+  // Vencimiento del pago: pasado este momento el pedido se cancela y el stock vuelve.
+  paymentDueAt       DateTime?
+  // Ley 1480: aceptación de términos en la venta a distancia.
+  termsAcceptedAt    DateTime?
+  privacyPolicyVersion String?
   // Factura electrónica (DIAN): número y CUFE devueltos por el proveedor de facturación.
   invoiceNumber      String?      @unique
   invoiceCufe        String?      @unique
@@ -464,6 +474,7 @@ model Order {
   updatedAt          DateTime     @updatedAt
   user               User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
   coupon             Coupon?      @relation(fields: [couponId], references: [id], onDelete: SetNull)
+  shippingMethod     ShippingMethod? @relation(fields: [shippingMethodId], references: [id], onDelete: SetNull)
   couponRedemption   CouponRedemption?
   items              OrderItem[]
   payments            Payment[]
@@ -472,6 +483,7 @@ model Order {
   reservations        StockReservation[]
   @@index([userId, createdAt])
   @@index([status, createdAt])
+  @@index([status, paymentDueAt])
 }
 
 model OrderItem {
@@ -485,7 +497,11 @@ model OrderItem {
   unitPrice       Decimal        @db.Decimal(12, 2)
   quantity        Int
   discountTotal   Decimal        @default(0) @db.Decimal(12, 2)
+  // Total de la línea con descuento e IVA incluido.
   lineTotal       Decimal        @db.Decimal(12, 2)
+  // IVA incluido en lineTotal y tarifa aplicada (para la factura).
+  taxRate         Decimal        @default(0) @db.Decimal(5, 4)
+  taxTotal        Decimal        @default(0) @db.Decimal(12, 2)
   productSnapshot Json
   order           Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
   product         Product?       @relation(fields: [productId], references: [id], onDelete: SetNull)
@@ -583,8 +599,14 @@ model ShippingMethod {
   name        String
   description String?
   basePrice   Decimal    @db.Decimal(12, 2)
+  // Envío gratis desde este subtotal (IVA incluido); null = nunca gratis.
+  freeShippingThreshold Decimal? @db.Decimal(12, 2)
+  // Texto para el cliente, p. ej. "3 a 5 días hábiles".
+  estimatedDelivery String?
   isActive    Boolean    @default(true)
+  sortOrder   Int        @default(0)
   shipments   Shipment[]
+  orders      Order[]
 }
 
 model Shipment {

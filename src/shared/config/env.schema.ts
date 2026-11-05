@@ -92,6 +92,17 @@ export const envSchema = z
     CHECKOUT_RESERVATION_MINUTES: z.coerce.number().int().min(5).max(60).default(15),
     // Días sin cambios tras los que se borra un carrito de invitado.
     GUEST_CART_TTL_DAYS: z.coerce.number().int().min(1).max(90).default(30),
+    // Pedidos
+    // Minutos para pagar un pedido; después se cancela y el stock vuelve (PSE puede tardar).
+    ORDER_PAYMENT_MINUTES: z.coerce.number().int().min(10).max(1440).default(60),
+    // Prefijo del número de pedido: TCC-000123.
+    ORDER_NUMBER_PREFIX: z
+      .string()
+      .regex(/^[A-Z]{2,6}$/)
+      .default('TCC'),
+    // IVA incluido en el costo de envío (confirmar con el contador).
+    SHIPPING_TAX_RATE: z.coerce.number().min(0).max(1).default(0.19),
+
     // Procesos programados (liberar reservas, limpiar carritos). Por defecto
     // activos salvo en pruebas. Con varias instancias pueden correr en todas:
     // las operaciones son seguras ante ejecuciones simultáneas.

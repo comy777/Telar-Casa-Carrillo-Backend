@@ -78,3 +78,10 @@ CREATE INDEX "product_search_idx" ON "Product" USING GIN (
 ALTER TABLE "InventoryMovement" ADD CONSTRAINT "inventory_movement_balances_valid"
   CHECK ("onHandAfter" >= 0 AND "reservedAfter" >= 0 AND "reservedAfter" <= "onHandAfter");
 CREATE INDEX "reservation_active_expiry" ON "StockReservation" ("expiresAt") WHERE "releasedAt" IS NULL;
+
+-- Agregadas en la migración orders_checkout (Fase 5).
+CREATE SEQUENCE "order_number_seq" START 1;
+ALTER TABLE "ShippingMethod" ADD CONSTRAINT "shipping_method_free_threshold_nonneg"
+  CHECK ("freeShippingThreshold" IS NULL OR "freeShippingThreshold" >= 0);
+ALTER TABLE "OrderItem" ADD CONSTRAINT "order_item_tax_valid"
+  CHECK ("taxTotal" >= 0 AND "taxTotal" <= "lineTotal" AND "taxRate" >= 0 AND "taxRate" <= 1);

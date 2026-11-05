@@ -2,7 +2,7 @@
 
 API de la tienda en línea Telar Casa Carrillo: NestJS 11, PostgreSQL 16 y Prisma 6, organizada con Clean Architecture por módulos.
 
-Estado: **Fases 1 (fundaciones), 2 (identidad y administración), 3 (catálogo) y 4 (carrito e inventario)** del [plan de implementación](docs/implementation-plan.md).
+Estado: **Fases 1 (fundaciones), 2 (identidad y administración), 3 (catálogo), 4 (carrito e inventario) y 5 (pedidos y checkout)** del [plan de implementación](docs/implementation-plan.md).
 
 ## Requisitos
 - Node.js 22 o superior (ver `.nvmrc`)
@@ -114,6 +114,20 @@ Administración: `/api/v1/admin/products` (con `/:id/status`, `/:id/variants` y 
 - Funciona con o sin sesión. Sin sesión, el carrito va en la cookie HttpOnly `tcc_cart`; el frontend debe llamar con `credentials: 'include'`. Al iniciar sesión, el carrito de invitado se incorpora al de la cuenta en la siguiente petición.
 - Agregar al carrito no aparta stock; solo la reserva del checkout lo hace, y cualquier cambio al carrito la libera.
 - Administración: `/api/v1/admin/inventory` (permisos `inventory:read` e `inventory:manage`) con entradas (`/:variantId/receipts`), conteos físicos (`/:variantId/count`), umbral y movimientos.
+
+## Checkout y pedidos
+| Ruta | Qué hace |
+|---|---|
+| `GET /api/v1/shipping/methods` | Métodos de envío activos y su costo |
+| `POST /api/v1/checkout/quote` | Totales con envío y cupón, sin crear el pedido |
+| `POST /api/v1/checkout/orders` | Crea el pedido `PENDING_PAYMENT`: aparta el stock, registra el cupón y vacía el carrito |
+| `GET /api/v1/account/orders`, `/account/orders/:numero` | Pedidos del cliente con sesión |
+| `GET /api/v1/orders/:numero?token=` | Pedido de un invitado (token del correo de confirmación) |
+| `/api/v1/account/addresses` | Libreta de direcciones (código DANE obligatorio) |
+
+- Los precios incluyen IVA; el pedido lo desglosa por línea. El servidor calcula todo: el navegador solo envía qué compra y a dónde.
+- Si el pedido no se paga antes de `paymentDueAt` (`ORDER_PAYMENT_MINUTES`), se cancela solo y el stock vuelve.
+- Administración: `/api/v1/admin/orders` (avanzar estados, registrar factura), `/admin/coupons` y `/admin/shipping-methods`. La factura electrónica se registra a mano hasta integrar un proveedor tecnológico.
 
 ## Convenciones ya implementadas
 - **Configuración:** las variables de entorno se validan con Zod al arrancar (`src/shared/config/env.schema.ts`). En producción además se exige SMTP, HTTPS en la tienda y un secreto JWT que no sea el de ejemplo.

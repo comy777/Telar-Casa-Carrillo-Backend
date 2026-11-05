@@ -228,8 +228,14 @@ export class CartService {
   }
 
   /** Carrito actual del usuario o invitado, sin crearlo (para el checkout). */
-  async current(identity: CartIdentity): Promise<Cart | null> {
-    return (await this.resolve(identity, false)).cart;
+  async current(identity: CartIdentity): Promise<{ cart: Cart | null; cookie: GuestCookie }> {
+    return this.resolve(identity, false);
+  }
+
+  /** Tras crear el pedido: se vacía (sus reservas ya pasaron al pedido). */
+  async emptyAfterOrder(cart: Cart): Promise<void> {
+    cart.clear();
+    await this.carts.save(cart);
   }
 
   // ---------- utilidades ----------

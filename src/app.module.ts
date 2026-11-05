@@ -6,6 +6,9 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AuditModule } from './modules/audit/audit.module';
 import { CartModule } from './modules/cart/cart.module';
 import { CatalogModule } from './modules/catalog/catalog.module';
+import { OrderingModule } from './modules/ordering/ordering.module';
+import { PromotionsModule } from './modules/promotions/promotions.module';
+import { ShippingModule } from './modules/shipping/shipping.module';
 import { HealthModule } from './modules/health/health.module';
 import { IdentityModule } from './modules/identity/identity.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
@@ -36,6 +39,9 @@ import { PrismaModule } from './shared/infrastructure/prisma/prisma.module';
     CatalogModule,
     InventoryModule,
     CartModule,
+    ShippingModule,
+    PromotionsModule,
+    OrderingModule,
     HealthModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],

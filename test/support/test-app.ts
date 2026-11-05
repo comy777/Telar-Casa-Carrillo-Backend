@@ -93,6 +93,8 @@ export async function createTestApp(): Promise<TestApp> {
     reset: async () => {
       await prisma.$executeRawUnsafe(
         `TRUNCATE "AuditLog", "RefreshToken", "UserToken", "UserRole", "User",
+          "CouponRedemption", "OrderStatusHistory", "OrderItem", "Order", "Coupon",
+          "ShippingMethod", "Address",
           "StockReservation", "CartItem", "Cart", "InventoryMovement", "Inventory",
           "ProductImage", "ProductVariant", "ProductCategory", "ProductMaterial", "Product",
           "Material", "Category", "Artisan" CASCADE`,
