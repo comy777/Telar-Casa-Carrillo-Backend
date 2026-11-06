@@ -8,15 +8,16 @@ import {
   type StockLevel,
 } from '../../../shared/domain/stock-availability';
 import { PrismaClientProvider } from '../../../shared/infrastructure/prisma/prisma-client.provider';
-import type {
-  CatalogReader,
-  ProductCard,
-  ProductDetailView,
-  PublicArtisanView,
-  PublicCategoryNode,
-  SitemapEntry,
-  StorefrontProductQuery,
-  StorefrontSort,
+import {
+  BEST_SELLING_DAYS,
+  type CatalogReader,
+  type ProductCard,
+  type ProductDetailView,
+  type PublicArtisanView,
+  type PublicCategoryNode,
+  type SitemapEntry,
+  type StorefrontProductQuery,
+  type StorefrontSort,
 } from '../application/ports';
 import { centsToPesos } from '../domain/money';
 import { decimalToBasisPoints, decimalToCents, toAttributes } from './prisma-catalog.mappers';
@@ -38,6 +39,7 @@ const ORDER_BY: Record<StorefrontSort, Prisma.Sql> = {
   newest: Prisma.sql`"createdAt" DESC, "id"`,
   price_asc: Prisma.sql`"minPrice" ASC, "createdAt" DESC, "id"`,
   price_desc: Prisma.sql`"minPrice" DESC, "createdAt" DESC, "id"`,
+  best_selling: Prisma.sql`"sold" DESC, "createdAt" DESC, "id"`,
 };
 
 const escapeLike = (value: string) => value.replace(/[\\%_]/g, (char) => `\\${char}`);
@@ -118,9 +120,13 @@ const artisanSelect = {
 
 type ArtisanRow = Prisma.ArtisanGetPayload<{ select: typeof artisanSelect }>;
 
-const toPublicArtisan = ({ _count, ...row }: ArtisanRow): PublicArtisanView => ({
+const toPublicArtisan = (
+  { _count, ...row }: ArtisanRow,
+  techniques: string[] = [],
+): PublicArtisanView => ({
   ...row,
   publishedProducts: _count.products,
+  techniques,
 });
 
 @Injectable()
@@ -184,6 +190,11 @@ export class PrismaCatalogReader implements CatalogReader {
         SELECT 1 FROM "ProductMaterial" pm JOIN "Material" m ON m."id" = pm."materialId"
         WHERE pm."productId" = p."id" AND lower(m."name") = lower(${query.material}))`);
     }
+    if (query.technique) {
+      conditions.push(Prisma.sql`EXISTS (
+        SELECT 1 FROM "ProductTechnique" pt JOIN "Technique" t ON t."id" = pt."techniqueId"
+        WHERE pt."productId" = p."id" AND lower(t."name") = lower(${query.technique}))`);
+    }
     if (query.featured) conditions.push(Prisma.sql`p."isFeatured"`);
     if (query.inStock) {
       conditions.push(Prisma.sql`EXISTS (
@@ -200,9 +211,18 @@ export class PrismaCatalogReader implements CatalogReader {
       having.push(Prisma.sql`MIN(v."price") <= ${pesos(query.maxPriceCents)}::numeric`);
     }
 
+    // Unidades vendidas en pedidos pagados recientes (solo se calcula al ordenar por ventas).
+    const sold =
+      query.sort === 'best_selling'
+        ? Prisma.sql`(SELECT COALESCE(SUM(oi."quantity"), 0) FROM "OrderItem" oi
+            JOIN "Order" o ON o."id" = oi."orderId"
+            WHERE oi."productId" = p."id"
+              AND o."status" IN ('PAID', 'PROCESSING', 'SHIPPED', 'DELIVERED')
+              AND o."createdAt" > now() - make_interval(days => ${BEST_SELLING_DAYS}::int))`
+        : Prisma.sql`0`;
     const rank = tsQuery ? Prisma.sql`ts_rank(${SEARCH_DOCUMENT}, ${tsQuery})` : Prisma.sql`0`;
     return Prisma.sql`
-      SELECT p."id", p."createdAt", MIN(v."price") AS "minPrice", ${rank} AS "rank"
+      SELECT p."id", p."createdAt", MIN(v."price") AS "minPrice", ${rank} AS "rank", ${sold} AS "sold"
       FROM "Product" p
       JOIN "ProductVariant" v ON v."productId" = p."id" AND v."isActive"
       WHERE ${Prisma.join(conditions, ' AND ')}
@@ -217,6 +237,7 @@ export class PrismaCatalogReader implements CatalogReader {
         artisan: true,
         categories: { include: { category: true } },
         materials: { include: { material: true } },
+        techniques: { include: { technique: true } },
         images: { orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }] },
         variants: {
           where: { isActive: true },
@@ -251,6 +272,9 @@ export class PrismaCatalogReader implements CatalogReader {
         .map(({ category }) => ({ id: category.id, name: category.name, slug: category.slug })),
       materials: row.materials
         .map(({ material }) => material.name)
+        .sort((a, b) => a.localeCompare(b, 'es')),
+      techniques: row.techniques
+        .map(({ technique }) => technique.name)
         .sort((a, b) => a.localeCompare(b, 'es')),
       images: row.images.map((image) => ({
         id: image.id,
@@ -303,7 +327,13 @@ export class PrismaCatalogReader implements CatalogReader {
       }),
       this.db.client.artisan.count({ where }),
     ]);
-    return { items: rows.map(toPublicArtisan), total, page: page.page, pageSize: page.pageSize };
+    const techniques = await this.techniquesByArtisan(rows.map((r) => r.id));
+    return {
+      items: rows.map((r) => toPublicArtisan(r, techniques.get(r.id))),
+      total,
+      page: page.page,
+      pageSize: page.pageSize,
+    };
   }
 
   async findArtisanBySlug(slug: string): Promise<PublicArtisanView | null> {
@@ -311,7 +341,58 @@ export class PrismaCatalogReader implements CatalogReader {
       where: { slug, isActive: true },
       select: artisanSelect,
     });
-    return row ? toPublicArtisan(row) : null;
+    if (!row) return null;
+    const techniques = await this.techniquesByArtisan([row.id]);
+    return toPublicArtisan(row, techniques.get(row.id));
+  }
+
+  /** Técnicas de los productos publicados de cada artesano (se deducen, no se guardan aparte). */
+  private async techniquesByArtisan(artisanIds: string[]): Promise<Map<string, string[]>> {
+    const result = new Map<string, string[]>();
+    if (artisanIds.length === 0) return result;
+    const rows = await this.db.client.productTechnique.findMany({
+      where: { product: { ...PUBLISHED, artisanId: { in: artisanIds } } },
+      select: { technique: { select: { name: true } }, product: { select: { artisanId: true } } },
+    });
+    for (const row of rows) {
+      const id = row.product.artisanId;
+      if (!id) continue;
+      const list = result.get(id) ?? [];
+      if (!list.includes(row.technique.name)) list.push(row.technique.name);
+      result.set(id, list);
+    }
+    for (const list of result.values()) list.sort((a, b) => a.localeCompare(b, 'es'));
+    return result;
+  }
+
+  async listTechniques(): Promise<string[]> {
+    const rows = await this.db.client.technique.findMany({
+      where: { products: { some: { product: PUBLISHED } } },
+      select: { name: true },
+      orderBy: { name: 'asc' },
+    });
+    return rows.map((row) => row.name);
+  }
+
+  async listRelated(slug: string, limit: number): Promise<ProductCard[]> {
+    const current = await this.db.client.product.findFirst({
+      where: { ...PUBLISHED, slug },
+      select: { id: true, artisanId: true, categories: { select: { categoryId: true } } },
+    });
+    if (!current) return [];
+    const categoryIds = current.categories.map((c) => c.categoryId);
+    const sameOrigin: Prisma.ProductWhereInput[] = [];
+    if (categoryIds.length > 0)
+      sameOrigin.push({ categories: { some: { categoryId: { in: categoryIds } } } });
+    if (current.artisanId) sameOrigin.push({ artisanId: current.artisanId });
+    if (sameOrigin.length === 0) return [];
+    const rows = await this.db.client.product.findMany({
+      where: { ...PUBLISHED, id: { not: current.id }, OR: sameOrigin },
+      select: cardSelect,
+      orderBy: [{ isFeatured: 'desc' }, { createdAt: 'desc' }, { id: 'asc' }],
+      take: limit,
+    });
+    return rows.map(toCard);
   }
 
   async listMaterials(): Promise<string[]> {

@@ -100,6 +100,15 @@ export class Storefront {
     return this.reader.listMaterials();
   }
 
+  listTechniques(): Promise<string[]> {
+    return this.reader.listTechniques();
+  }
+
+  /** Hasta `limit` piezas de la misma categoría o del mismo artesano. */
+  async related(slug: string, limit = 4): Promise<ProductCard[]> {
+    return this.reader.listRelated(slug, Math.min(Math.max(limit, 1), 12));
+  }
+
   async sitemap(): Promise<{
     products: SitemapEntry[];
     categories: SitemapEntry[];

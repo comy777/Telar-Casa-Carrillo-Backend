@@ -7,6 +7,8 @@ import { AccountEmailsService } from './application/account-emails.service';
 import { GetCurrentUser, Login } from './application/authentication.use-cases';
 import { IDENTITY_SETTINGS, type IdentitySettings } from './application/identity-settings';
 import { RequestPasswordReset, ResetPassword } from './application/password-reset.use-cases';
+import { AccountProfile, ChangePassword } from './application/profile.use-cases';
+import { AccountProfileController } from './presentation/account-profile.controller';
 import {
   ACCESS_TOKENS,
   PASSWORD_HASHER,
@@ -63,7 +65,12 @@ import { SECURE_COOKIES } from './presentation/refresh-cookie';
       }),
     }),
   ],
-  controllers: [AuthController, AdminUsersController, AdminRolesController],
+  controllers: [
+    AuthController,
+    AccountProfileController,
+    AdminUsersController,
+    AdminRolesController,
+  ],
   providers: [
     {
       provide: IDENTITY_SETTINGS,
@@ -103,6 +110,8 @@ import { SECURE_COOKIES } from './presentation/refresh-cookie';
     GetCurrentUser,
     RequestPasswordReset,
     ResetPassword,
+    AccountProfile,
+    ChangePassword,
     ListUsers,
     GetUser,
     ChangeUserStatus,

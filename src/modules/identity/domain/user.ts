@@ -120,6 +120,28 @@ export class User {
     this.props.status = 'ACTIVE';
   }
 
+  get lastName(): string {
+    return this.props.lastName;
+  }
+  get phone(): string | null {
+    return this.props.phone;
+  }
+
+  /** El cliente edita su nombre y teléfono; el correo no cambia por aquí. */
+  updateProfile(changes: { firstName?: string; lastName?: string; phone?: string | null }): void {
+    if (changes.firstName !== undefined)
+      this.props.firstName = requireName(changes.firstName, 'nombre');
+    if (changes.lastName !== undefined)
+      this.props.lastName = requireName(changes.lastName, 'apellido');
+    if (changes.phone !== undefined) {
+      const phone = changes.phone?.trim() || null;
+      if (phone && phone.length > 30) {
+        throw new BusinessRuleViolation('El teléfono admite hasta 30 caracteres', 'PHONE_TOO_LONG');
+      }
+      this.props.phone = phone;
+    }
+  }
+
   changePasswordHash(passwordHash: string): void {
     this.props.passwordHash = passwordHash;
   }

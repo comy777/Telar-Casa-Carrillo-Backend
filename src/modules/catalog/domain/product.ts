@@ -18,6 +18,7 @@ export const MAX_VARIANTS_PER_PRODUCT = 50;
 export const MAX_ATTRIBUTES_PER_VARIANT = 10;
 export const MAX_CATEGORIES_PER_PRODUCT = 10;
 export const MAX_MATERIALS_PER_PRODUCT = 10;
+export const MAX_TECHNIQUES_PER_PRODUCT = 10;
 
 export type VariantAttributes = Record<string, string>;
 
@@ -60,6 +61,8 @@ export interface ProductProps {
   seoDescription: string | null;
   categoryIds: string[];
   materials: string[];
+  /** Técnicas de tejido (telar de pedal, flecos anudados...). */
+  techniques: string[];
   variants: VariantProps[];
   images: ProductImageProps[];
   createdAt: Date;
@@ -91,6 +94,7 @@ export interface ProductDetails {
   seoDescription?: string | null | undefined;
   categoryIds?: string[] | undefined;
   materials?: string[] | undefined;
+  techniques?: string[] | undefined;
 }
 
 export type ProductChanges = Partial<ProductDetails>;
@@ -131,6 +135,22 @@ export function normalizeMaterials(names: string[]): string[] {
     MAX_MATERIALS_PER_PRODUCT,
     'TOO_MANY_MATERIALS',
     'materiales',
+  );
+}
+
+/** Igual que los materiales: capitalizadas y sin duplicados. */
+export function normalizeTechniques(names: string[]): string[] {
+  const byKey = new Map<string, string>();
+  for (const raw of names) {
+    const collapsed = requiredText(raw.replace(/\s+/g, ' '), 'técnica', TEXT_LIMITS.materialName);
+    const name = collapsed.charAt(0).toLocaleUpperCase('es') + collapsed.slice(1).toLowerCase();
+    byKey.set(name.toLowerCase(), name);
+  }
+  return limitList(
+    [...byKey.values()],
+    MAX_TECHNIQUES_PER_PRODUCT,
+    'TOO_MANY_TECHNIQUES',
+    'técnicas',
   );
 }
 
@@ -214,6 +234,7 @@ export class Product {
       seoDescription: null,
       categoryIds: [],
       materials: [],
+      techniques: [],
       variants: [],
       images: [],
       createdAt: now,
@@ -230,6 +251,7 @@ export class Product {
       ...props,
       categoryIds: [...props.categoryIds],
       materials: [...props.materials],
+      techniques: [...(props.techniques ?? [])],
       variants: props.variants.map((v) => ({ ...v, attributes: { ...v.attributes } })),
       images: props.images.map((image) => ({ ...image })),
     });
@@ -289,6 +311,7 @@ export class Product {
     }
     if (changes.categoryIds !== undefined) p.categoryIds = uniqueIds(changes.categoryIds);
     if (changes.materials !== undefined) p.materials = normalizeMaterials(changes.materials);
+    if (changes.techniques !== undefined) p.techniques = normalizeTechniques(changes.techniques);
   }
 
   changeStatus(to: ProductStatus): void {

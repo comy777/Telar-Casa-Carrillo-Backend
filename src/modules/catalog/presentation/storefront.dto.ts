@@ -18,7 +18,7 @@ import { TEXT_LIMITS } from '../domain/text';
 import { VariantResponse } from './product.dto';
 import { ToBoolean } from './validators';
 
-const SORTS: StorefrontSort[] = ['newest', 'price_asc', 'price_desc', 'relevance'];
+const SORTS: StorefrontSort[] = ['newest', 'price_asc', 'price_desc', 'relevance', 'best_selling'];
 const AVAILABILITIES: Availability[] = ['IN_STOCK', 'LOW_STOCK', 'OUT_OF_STOCK'];
 
 export class StorefrontProductsQuery extends PaginationQuery {
@@ -47,6 +47,12 @@ export class StorefrontProductsQuery extends PaginationQuery {
   @IsString()
   @MaxLength(TEXT_LIMITS.materialName)
   material?: string;
+
+  @ApiPropertyOptional({ example: 'Telar de pedal' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(TEXT_LIMITS.materialName)
+  technique?: string;
 
   @ApiPropertyOptional({ description: 'Pesos' })
   @IsOptional()
@@ -162,6 +168,7 @@ export class ProductDetailResponse {
   artisan!: ProductArtisanResponse | null;
   @ApiProperty({ type: [CategoryLinkResponse] }) categories!: CategoryLinkResponse[];
   @ApiProperty({ type: [String] }) materials!: string[];
+  @ApiProperty({ type: [String] }) techniques!: string[];
   @ApiProperty({ type: [ProductImageResponse] }) images!: ProductImageResponse[];
   @ApiProperty({ type: [StorefrontVariantResponse] }) variants!: StorefrontVariantResponse[];
   @ApiProperty({ type: SeoResponse }) seo!: SeoResponse;
@@ -196,6 +203,8 @@ export class PublicArtisanResponse {
   @ApiProperty({ nullable: true, type: String }) photoUrl!: string | null;
   @ApiProperty() isFeatured!: boolean;
   @ApiProperty() publishedProducts!: number;
+  @ApiProperty({ type: [String], description: 'Técnicas de sus productos publicados' })
+  techniques!: string[];
 }
 
 export class PublicArtisanPage {

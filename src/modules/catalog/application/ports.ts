@@ -52,7 +52,10 @@ export const ARTISAN_REPOSITORY = Symbol('ArtisanRepository');
 
 // ---------- Lectura (tienda) ----------
 
-export type StorefrontSort = 'newest' | 'price_asc' | 'price_desc' | 'relevance';
+export type StorefrontSort = 'newest' | 'price_asc' | 'price_desc' | 'relevance' | 'best_selling';
+
+/** Ventana de ventas para ordenar por más vendidos. */
+export const BEST_SELLING_DAYS = 90;
 
 export interface StorefrontProductQuery extends PageRequest {
   search?: string | undefined;
@@ -60,6 +63,7 @@ export interface StorefrontProductQuery extends PageRequest {
   categoryIds?: string[] | undefined;
   artisanSlug?: string | undefined;
   material?: string | undefined;
+  technique?: string | undefined;
   minPriceCents?: number | undefined;
   maxPriceCents?: number | undefined;
   featured?: boolean | undefined;
@@ -110,6 +114,7 @@ export interface ProductDetailView {
   artisan: (ArtisanSummary & { photoUrl: string | null; biography: string | null }) | null;
   categories: { id: string; name: string; slug: string }[];
   materials: string[];
+  techniques: string[];
   images: (ImageView & { id: string; variantId: string | null; isPrimary: boolean })[];
   variants: {
     id: string;
@@ -143,6 +148,8 @@ export interface PublicArtisanView {
   photoUrl: string | null;
   isFeatured: boolean;
   publishedProducts: number;
+  /** Técnicas de sus productos publicados. */
+  techniques: string[];
   updatedAt: Date;
 }
 
@@ -164,6 +171,10 @@ export interface CatalogReader {
   findArtisanBySlug(slug: string): Promise<PublicArtisanView | null>;
   /** Materiales usados por algún producto publicado. */
   listMaterials(): Promise<string[]>;
+  /** Técnicas usadas por algún producto publicado. */
+  listTechniques(): Promise<string[]>;
+  /** Publicados de la misma categoría o artesano, sin el producto indicado. */
+  listRelated(slug: string, limit: number): Promise<ProductCard[]>;
   sitemap(): Promise<{ products: SitemapEntry[]; artisans: SitemapEntry[] }>;
 }
 export const CATALOG_READER = Symbol('CatalogReader');

@@ -48,6 +48,7 @@ const containsInsensitive = (value: string) => ({
 const productInclude = {
   categories: { select: { categoryId: true } },
   materials: { select: { material: { select: { name: true } } } },
+  techniques: { select: { technique: { select: { name: true } } } },
   variants: { orderBy: [{ price: 'asc' }, { name: 'asc' }] },
   images: { orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }] },
 } satisfies Prisma.ProductInclude;
@@ -70,6 +71,9 @@ function productToDomain(row: ProductRow): Product {
     seoDescription: row.seoDescription,
     categoryIds: row.categories.map((c) => c.categoryId),
     materials: row.materials.map((m) => m.material.name).sort((a, b) => a.localeCompare(b, 'es')),
+    techniques: row.techniques
+      .map((t) => t.technique.name)
+      .sort((a, b) => a.localeCompare(b, 'es')),
     variants: row.variants.map((v) => ({
       id: v.id,
       name: v.name,
@@ -118,6 +122,16 @@ export class PrismaProductRepository implements ProductRepository {
         });
         materialIds.push(material.id);
       }
+      const techniqueIds: string[] = [];
+      for (const name of s.techniques) {
+        const technique = await client.technique.upsert({
+          where: { name },
+          create: { name },
+          update: {},
+          select: { id: true },
+        });
+        techniqueIds.push(technique.id);
+      }
 
       const fields = {
         name: s.name,
@@ -134,6 +148,7 @@ export class PrismaProductRepository implements ProductRepository {
       };
       const categoryLinks = s.categoryIds.map((categoryId) => ({ categoryId }));
       const materialLinks = materialIds.map((materialId) => ({ materialId }));
+      const techniqueLinks = techniqueIds.map((techniqueId) => ({ techniqueId }));
       await client.product.upsert({
         where: { id: s.id },
         create: {
@@ -143,11 +158,13 @@ export class PrismaProductRepository implements ProductRepository {
           artisan: s.artisanId ? { connect: { id: s.artisanId } } : undefined,
           categories: { create: categoryLinks },
           materials: { create: materialLinks },
+          techniques: { create: techniqueLinks },
         },
         update: {
           ...fields,
           categories: { deleteMany: {}, create: categoryLinks },
           materials: { deleteMany: {}, create: materialLinks },
+          techniques: { deleteMany: {}, create: techniqueLinks },
         },
       });
 

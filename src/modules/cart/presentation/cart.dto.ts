@@ -9,7 +9,7 @@ export class AddCartItemDto {
   @IsUUID()
   variantId!: string;
 
-  @ApiPropertyOptional({ default: 1, minimum: 1, maximum: MAX_QUANTITY_PER_LINE })
+  @ApiPropertyOptional({ type: Number, default: 1, minimum: 1, maximum: MAX_QUANTITY_PER_LINE })
   @IsOptional()
   @IsInt()
   @Min(1)
@@ -23,6 +23,15 @@ export class SetCartItemDto {
   @Min(1)
   @Max(MAX_QUANTITY_PER_LINE)
   quantity!: number;
+}
+
+export class CartImageResponse {
+  @ApiProperty() url!: string;
+  @ApiProperty({ nullable: true, type: String }) altText!: string | null;
+}
+
+export class CartReservationResponse {
+  @ApiProperty({ type: String, format: 'date-time' }) expiresAt!: Date;
 }
 
 export class CartIssueResponse {
@@ -40,10 +49,7 @@ export class CartProductResponse {
   attributes!: Record<string, string>;
   @ApiProperty({ description: 'Precio unitario actual en pesos, IVA incluido' }) unitPrice!: number;
   @ApiProperty() currency!: string;
-  @ApiProperty({ nullable: true, type: Object }) image!: {
-    url: string;
-    altText: string | null;
-  } | null;
+  @ApiProperty({ nullable: true, type: CartImageResponse }) image!: CartImageResponse | null;
 }
 
 export class CartLineResponse {
@@ -65,10 +71,10 @@ export class CartResponse {
   @ApiProperty({ description: 'true si se puede iniciar el checkout' }) canCheckout!: boolean;
   @ApiProperty({
     nullable: true,
-    type: Object,
+    type: CartReservationResponse,
     description: 'Unidades apartadas para el checkout hasta expiresAt',
   })
-  reservation!: { expiresAt: Date } | null;
+  reservation!: CartReservationResponse | null;
 }
 
 export function toCartResponse(view: CartView): CartResponse {

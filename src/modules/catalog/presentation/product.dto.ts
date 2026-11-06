@@ -151,6 +151,14 @@ export class ProductFieldsDto {
   @IsString({ each: true })
   @MaxLength(TEXT_LIMITS.materialName, { each: true })
   materials?: string[];
+
+  @ApiPropertyOptional({ type: [String], example: ['Telar de pedal', 'Flecos anudados a mano'] })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(MAX_MATERIALS_PER_PRODUCT)
+  @IsString({ each: true })
+  @MaxLength(TEXT_LIMITS.materialName, { each: true })
+  techniques?: string[];
 }
 
 export class CreateProductDto extends ProductFieldsDto {
@@ -283,6 +291,7 @@ export class AdminProductResponse {
   @ApiProperty({ nullable: true, type: String }) seoDescription!: string | null;
   @ApiProperty({ type: [String] }) categoryIds!: string[];
   @ApiProperty({ type: [String] }) materials!: string[];
+  @ApiProperty({ type: [String] }) techniques!: string[];
   @ApiProperty({ type: [AdminVariantResponse] }) variants!: AdminVariantResponse[];
   @ApiProperty({ type: [AdminImageResponse] }) images!: AdminImageResponse[];
   @ApiProperty() createdAt!: Date;

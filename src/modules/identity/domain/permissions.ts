@@ -18,6 +18,8 @@ export const PERMISSIONS = {
   PAYMENTS_READ: 'payments:read',
   PAYMENTS_REFUND: 'payments:refund',
   REPORTS_READ: 'reports:read',
+  CONTENT_MANAGE: 'content:manage',
+  MESSAGES_READ: 'messages:read',
 } as const;
 
 export type PermissionKey = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
@@ -38,6 +40,9 @@ export const PERMISSION_DESCRIPTIONS: Record<PermissionKey, string> = {
   'payments:read': 'Ver pagos, transacciones y notificaciones de la pasarela',
   'payments:refund': 'Solicitar reembolsos',
   'reports:read': 'Ver métricas y exportar reportes',
+  'content:manage':
+    'Editar banners, testimonios, preguntas frecuentes, páginas y ajustes de la tienda',
+  'messages:read': 'Ver los mensajes de contacto y los suscriptores del boletín',
 };
 
 export const ROLES = {

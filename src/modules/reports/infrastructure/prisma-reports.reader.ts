@@ -91,7 +91,40 @@ export class PrismaReportsReader implements ReportsReader {
         ) s`,
       ]);
 
+    const [customersTotal, customersNew, lowStock, newMessages] = await Promise.all([
+      client.user.count({ where: { roles: { some: { role: { name: 'customer' } } } } }),
+      client.user.count({
+        where: {
+          roles: { some: { role: { name: 'customer' } } },
+          createdAt: { gte: range.from, lt: range.to },
+        },
+      }),
+      client.$queryRaw<
+        {
+          variantId: string;
+          productName: string;
+          variantName: string;
+          sku: string;
+          available: number;
+          threshold: number;
+        }[]
+      >`
+        SELECT v."id" AS "variantId", p."name" AS "productName", v."name" AS "variantName", v."sku",
+               (coalesce(i."quantityOnHand", 0) - coalesce(i."quantityReserved", 0))::int AS "available",
+               coalesce(i."lowStockThreshold", 3)::int AS "threshold"
+        FROM "ProductVariant" v
+        JOIN "Product" p ON p."id" = v."productId"
+        LEFT JOIN "Inventory" i ON i."variantId" = v."id"
+        WHERE v."isActive" AND p."status" = 'ACTIVE'
+          AND coalesce(i."quantityOnHand", 0) - coalesce(i."quantityReserved", 0) <= coalesce(i."lowStockThreshold", 3)
+        ORDER BY "available" ASC, p."name" ASC
+        LIMIT 20`,
+      client.contactMessage.count({ where: { status: 'NEW' } }),
+    ]);
+
     return {
+      customers: { total: customersTotal, newInRange: customersNew },
+      lowStock,
       sales: {
         paidOrders: paid._count,
         revenueCents: cents(paid._sum.grandTotal),
@@ -119,6 +152,7 @@ export class PrismaReportsReader implements ReportsReader {
         unpaidOrders: unpaid,
         lowStockVariants: stock[0]?.low ?? 0,
         outOfStockVariants: stock[0]?.out ?? 0,
+        newContactMessages: newMessages,
       },
     };
   }

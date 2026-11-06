@@ -24,6 +24,17 @@ export interface Metrics {
   ordersByStatus: Record<string, number>;
   salesByDay: { day: string; orders: number; revenueCents: number }[];
   topProducts: { productName: string; sku: string; quantity: number; revenueCents: number }[];
+  /** Clientes con cuenta: total a la fecha y nuevos en el rango. */
+  customers: { total: number; newInRange: number };
+  /** Variantes publicadas con pocas unidades o agotadas (las 20 más urgentes). */
+  lowStock: {
+    variantId: string;
+    productName: string;
+    variantName: string;
+    sku: string;
+    available: number;
+    threshold: number;
+  }[];
   /** Pendientes a la fecha (no dependen del rango). */
   operations: {
     awaitingFulfillment: number;
@@ -32,6 +43,7 @@ export interface Metrics {
     unpaidOrders: number;
     lowStockVariants: number;
     outOfStockVariants: number;
+    newContactMessages: number;
   };
 }
 

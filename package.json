@@ -31,6 +31,7 @@
     "postinstall": "prisma generate",
     "db:seed": "prisma db seed",
     "admin:grant": "tsx scripts/grant-role.ts",
+    "db:seed:demo": "tsx scripts/seed-demo.ts",
     "release": "prisma migrate deploy && prisma db seed",
     "db:backup": "tsx scripts/db-backup.ts",
     "db:restore-check": "tsx scripts/db-restore-check.ts"

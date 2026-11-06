@@ -45,18 +45,104 @@ export class ExportQuery extends RangeQuery {
   delimiter?: ',' | ';';
 }
 
+class MetricsRange {
+  @ApiProperty({ type: String, format: 'date-time' }) from!: Date;
+  @ApiProperty({ type: String, format: 'date-time' }) to!: Date;
+}
+
+/** Valores en pesos, IVA incluido. */
+class SalesSummary {
+  @ApiProperty() paidOrders!: number;
+  @ApiProperty() revenue!: number;
+  @ApiProperty() tax!: number;
+  @ApiProperty() shipping!: number;
+  @ApiProperty() discount!: number;
+  @ApiProperty() refunded!: number;
+  @ApiProperty() netRevenue!: number;
+  @ApiProperty() averageOrder!: number;
+}
+
+class SalesDay {
+  @ApiProperty({ example: '2026-11-05' }) day!: string;
+  @ApiProperty() orders!: number;
+  @ApiProperty() revenue!: number;
+}
+
+class TopProduct {
+  @ApiProperty() productName!: string;
+  @ApiProperty() sku!: string;
+  @ApiProperty() quantity!: number;
+  @ApiProperty() revenue!: number;
+}
+
+class CustomersSummary {
+  @ApiProperty() total!: number;
+  @ApiProperty() newInRange!: number;
+}
+
+class LowStockItem {
+  @ApiProperty() variantId!: string;
+  @ApiProperty() productName!: string;
+  @ApiProperty() variantName!: string;
+  @ApiProperty() sku!: string;
+  @ApiProperty() available!: number;
+  @ApiProperty() threshold!: number;
+}
+
+class OperationsSummary {
+  @ApiProperty() awaitingFulfillment!: number;
+  @ApiProperty() pendingInvoices!: number;
+  @ApiProperty() paymentsNeedingReview!: number;
+  @ApiProperty() unpaidOrders!: number;
+  @ApiProperty() lowStockVariants!: number;
+  @ApiProperty() outOfStockVariants!: number;
+  @ApiProperty() newContactMessages!: number;
+}
+
 export class MetricsResponse {
-  @ApiProperty({ type: Object }) range!: { from: Date; to: Date };
-  @ApiProperty({ type: Object, description: 'Pesos' }) sales!: Record<string, number>;
-  @ApiProperty({ type: Object }) ordersByStatus!: Record<string, number>;
-  @ApiProperty({ type: [Object] }) salesByDay!: { day: string; orders: number; revenue: number }[];
-  @ApiProperty({ type: [Object] }) topProducts!: {
-    productName: string;
-    sku: string;
-    quantity: number;
-    revenue: number;
-  }[];
-  @ApiProperty({ type: Object }) operations!: Record<string, number>;
+  @ApiProperty({ type: MetricsRange }) range!: MetricsRange;
+  @ApiProperty({ type: SalesSummary }) sales!: SalesSummary;
+  @ApiProperty({ type: 'object', additionalProperties: { type: 'number' } })
+  ordersByStatus!: Record<string, number>;
+  @ApiProperty({ type: [SalesDay] }) salesByDay!: SalesDay[];
+  @ApiProperty({ type: [TopProduct] }) topProducts!: TopProduct[];
+  @ApiProperty({ type: CustomersSummary }) customers!: CustomersSummary;
+  @ApiProperty({ type: [LowStockItem] }) lowStock!: LowStockItem[];
+  @ApiProperty({ type: OperationsSummary }) operations!: OperationsSummary;
+}
+
+class SystemSignalsResponse {
+  @ApiProperty() failedWebhooks!: number;
+  @ApiProperty() invalidSignatures24h!: number;
+  @ApiProperty() stalePendingPayments!: number;
+  @ApiProperty() overdueUnpaidOrders!: number;
+  @ApiProperty() paymentsNeedingReview!: number;
+}
+
+class JobStatusResponse {
+  @ApiProperty() name!: string;
+  @ApiProperty() enabled!: boolean;
+  @ApiProperty() running!: boolean;
+  @ApiProperty({ nullable: true, type: String, format: 'date-time' }) lastRunAt!: Date | null;
+  @ApiProperty({ nullable: true, type: String, format: 'date-time' }) lastSuccessAt!: Date | null;
+  @ApiProperty({ nullable: true, type: String, format: 'date-time' }) lastErrorAt!: Date | null;
+  @ApiProperty({ nullable: true, type: String }) lastError!: string | null;
+  @ApiProperty() consecutiveFailures!: number;
+}
+
+class ServicesResponse {
+  @ApiProperty({ description: 'Llave privada de Wompi configurada' }) payments!: boolean;
+  @ApiProperty({ description: 'SMTP configurado (si no, los correos van al log)' }) email!: boolean;
+  @ApiProperty({ enum: ['cloudinary', 'local'] }) imageStorage!: 'cloudinary' | 'local';
+  @ApiProperty() alertRecipients!: number;
+}
+
+export class SystemStatusResponse {
+  @ApiProperty() healthy!: boolean;
+  @ApiProperty({ type: SystemSignalsResponse }) signals!: SystemSignalsResponse;
+  @ApiProperty({ type: [JobStatusResponse] }) jobs!: JobStatusResponse[];
+  @ApiProperty({ type: ServicesResponse }) services!: ServicesResponse;
+  @ApiProperty() uptimeSeconds!: number;
 }
 
 const EXPORTS = ['orders', 'order-items', 'inventory'] as const;
@@ -102,6 +188,8 @@ export class ReportsController {
         ...product,
         revenue: centsToPesos(revenueCents),
       })),
+      customers: metrics.customers,
+      lowStock: metrics.lowStock,
       operations: metrics.operations,
     };
   }
@@ -142,7 +230,8 @@ export class ReportsController {
     summary: 'Estado operativo: procesos programados, notificaciones fallidas y servicios',
     description: '`healthy` es false si algo requiere atención (útil para un monitor externo).',
   })
-  async status() {
+  @ApiOkResponse({ type: SystemStatusResponse })
+  async status(): Promise<SystemStatusResponse> {
     const signals = await this.reader.systemSignals(this.clock.now());
     const jobs = jobStatuses();
     const healthy =

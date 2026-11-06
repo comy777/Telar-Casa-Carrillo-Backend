@@ -97,6 +97,7 @@ export function toAdminProduct(product: Product): AdminProductResponse {
     seoDescription: s.seoDescription,
     categoryIds: s.categoryIds,
     materials: s.materials,
+    techniques: s.techniques,
     variants: s.variants.map((v) => ({
       id: v.id,
       name: v.name,

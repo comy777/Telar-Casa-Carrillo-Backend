@@ -188,13 +188,43 @@ export class TotalsResponse {
   @ApiProperty({ example: 'COP' }) currency!: string;
 }
 
+export class AppliedCouponResponse {
+  @ApiProperty() code!: string;
+  @ApiProperty({ description: 'Pesos' }) discount!: number;
+}
+
+export class ShippingMethodRefResponse {
+  @ApiProperty() id!: string;
+  @ApiProperty() name!: string;
+}
+
+export class OrderImageResponse {
+  @ApiProperty() url!: string;
+  @ApiProperty({ nullable: true, type: String }) altText!: string | null;
+}
+
+export class AddressSnapshotResponse {
+  @ApiProperty() recipient!: string;
+  @ApiProperty() phone!: string;
+  @ApiProperty() line1!: string;
+  @ApiProperty({ nullable: true, type: String }) line2!: string | null;
+  @ApiProperty() city!: string;
+  @ApiProperty() department!: string;
+  @ApiProperty() cityDaneCode!: string;
+  @ApiProperty({ nullable: true, type: String }) postalCode!: string | null;
+  @ApiProperty() countryCode!: string;
+}
+
+export class OrderShippingMethodResponse {
+  @ApiProperty() name!: string;
+}
+
 export class QuoteResponse {
   @ApiProperty({ type: TotalsResponse }) totals!: TotalsResponse;
-  @ApiProperty({ nullable: true, type: Object }) coupon!: { code: string; discount: number } | null;
-  @ApiProperty({ nullable: true, type: Object }) shippingMethod!: {
-    id: string;
-    name: string;
-  } | null;
+  @ApiProperty({ nullable: true, type: AppliedCouponResponse })
+  coupon!: AppliedCouponResponse | null;
+  @ApiProperty({ nullable: true, type: ShippingMethodRefResponse })
+  shippingMethod!: ShippingMethodRefResponse | null;
   @ApiProperty() canCheckout!: boolean;
 }
 
@@ -225,7 +255,7 @@ export class OrderItemResponse {
   @ApiProperty() taxRate!: number;
   @ApiProperty() tax!: number;
   @ApiProperty({ nullable: true, type: String }) productSlug!: string | null;
-  @ApiProperty({ nullable: true, type: Object }) image!: unknown;
+  @ApiProperty({ nullable: true, type: OrderImageResponse }) image!: unknown;
 }
 
 export class OrderHistoryResponse {
@@ -241,8 +271,10 @@ export class OrderResponse {
   @ApiProperty({ type: [OrderItemResponse] }) items!: OrderItemResponse[];
   @ApiProperty() customerName!: string;
   @ApiProperty() customerEmail!: string;
-  @ApiProperty({ type: Object }) shippingAddress!: unknown;
-  @ApiProperty({ nullable: true, type: Object }) shippingMethod!: { name: string } | null;
+  @ApiProperty({ type: AddressSnapshotResponse }) shippingAddress!: unknown;
+  @ApiProperty({ nullable: true, type: OrderShippingMethodResponse }) shippingMethod!: {
+    name: string;
+  } | null;
   @ApiProperty({ nullable: true, type: String }) couponCode!: string | null;
   @ApiProperty({ nullable: true, type: Date, description: 'Plazo para pagar' })
   paymentDueAt!: Date | null;
@@ -268,7 +300,7 @@ export class AdminOrderResponse extends OrderResponse {
   @ApiProperty({ nullable: true, type: String }) customerPhone!: string | null;
   @ApiProperty({ nullable: true, type: String }) customerDocumentType!: string | null;
   @ApiProperty({ nullable: true, type: String }) customerDocumentNumber!: string | null;
-  @ApiProperty({ nullable: true, type: Object }) billingAddress!: unknown;
+  @ApiProperty({ nullable: true, type: AddressSnapshotResponse }) billingAddress!: unknown;
   @ApiProperty({ nullable: true, type: String }) notes!: string | null;
   @ApiProperty({ nullable: true, type: String }) invoiceCufe!: string | null;
   @ApiProperty({ nullable: true, type: Date }) cancelledAt!: Date | null;

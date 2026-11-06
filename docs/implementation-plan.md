@@ -29,7 +29,7 @@
 - [x] Roles/permisos en servidor, leídos en cada petición (suspender o quitar un rol surte efecto de inmediato).
 - [x] Auditoría de cambios (`/admin/audit-logs`).
 - [x] Administración protegida: listar/buscar usuarios, suspender/reactivar, asignar roles, ver roles.
-- [ ] Pendiente para el frontend: páginas `/cuenta/verificar-correo` y `/cuenta/restablecer-contrasena` del storefront, que leen `?token=` y lo envían a la API.
+- [x] Páginas `/cuenta/verificar-correo` y `/cuenta/restablecer-contrasena` del storefront (repositorio `Telar-Casa-Carrillo`).
 - [ ] Pendiente para producción: configurar SMTP real y revisar las plantillas de correo con el negocio.
 
 ## Fase 3 — Catálogo
@@ -133,6 +133,20 @@
   - Hacer la **compra real de bajo valor y su reembolso controlado**.
 
   Todo está en `docs/go-live-checklist.md`.
+
+## Fase 9 — Lo que necesitaba el frontend
+- [x] Módulo `content`:
+  - Lectura pública: `/content/settings`, `/content/banners` (solo vigentes), `/content/testimonials`, `/content/faqs`, `/content/pages/:slug`.
+  - Administración (`content:manage`) en `/admin/content/*`, con auditoría; los banners nacen con su foto (Cloudinary o disco).
+  - Boletín con doble confirmación (`/content/newsletter`, `/confirm`, `/unsubscribe`): consentimiento y versión de la política (Ley 1581); en la base solo el hash del token. No revela si un correo ya estaba suscrito.
+- [x] Contacto: `POST /contact` (límite estricto, consentimiento), aviso a `ADMIN_ALERT_EMAILS`, bandeja en `/admin/contact-messages` (`messages:read`).
+- [x] Catálogo: técnicas por producto (`Technique`, filtro `technique`, `/catalog/techniques`; las de un artesano se deducen de sus piezas publicadas), `sort=best_selling` (pedidos pagados de los últimos 90 días) y `/catalog/products/:slug/related`.
+- [x] Cuenta: `GET/PATCH /account/profile` y `POST /auth/change-password` (exige la actual, cierra las demás sesiones y abre una nueva).
+- [x] Métricas: clientes registrados (total y nuevos en el rango), lista de las 20 variantes con menos unidades y mensajes nuevos.
+- [x] OpenAPI sin objetos sin forma: imagen y reserva del carrito, cupón y método del pedido, direcciones, parámetros del Widget de Wompi, estado del sistema, auditoría y paginación.
+- [x] El pago (`/orders/:n/payments` y `/confirm`) acepta el token de invitado en `X-Order-Token`, igual que el pedido y el seguimiento.
+- [x] `npm run db:seed:demo`: datos de demostración solo para desarrollo (marcados `[DEMO]`/`demo-`, se borran con `--reset`).
+- Migración: `20261106090000_content_contact_techniques`.
 
 ## Definition of Done por módulo
 - Reglas de dominio probadas.

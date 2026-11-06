@@ -15,7 +15,14 @@ import {
   Req,
   Res,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiHeader,
+  ApiOkResponse,
+  ApiOperation,
+  ApiQuery,
+  ApiTags,
+} from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import { actorOf } from '../../../shared/presentation/actor';
@@ -142,7 +149,8 @@ export class CustomerOrdersController {
   @Throttle({ default: { ttl: 60_000, limit: 20 } })
   @Header('Cache-Control', 'no-store')
   @ApiOperation({ summary: 'Pedido de un invitado, con el token del correo de confirmación' })
-  @ApiQuery({ name: 'token', required: true })
+  @ApiQuery({ name: 'token', required: false, description: 'Mejor enviarlo en X-Order-Token' })
+  @ApiHeader({ name: 'X-Order-Token', required: false })
   @ApiOkResponse({ type: OrderResponse })
   async guest(
     @Param('orderNumber') orderNumber: string,

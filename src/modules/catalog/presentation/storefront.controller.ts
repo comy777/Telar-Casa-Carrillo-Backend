@@ -9,6 +9,7 @@ import {
   CategoryPageResponse,
   CategoryTreeResponse,
   ProductCardPage,
+  ProductCardResponse,
   ProductDetailResponse,
   PublicArtisanPage,
   PublicArtisanResponse,
@@ -43,6 +44,7 @@ export class StorefrontController {
       categorySlug: query.category,
       artisanSlug: query.artisan,
       material: query.material,
+      technique: query.technique,
       minPriceCents: query.minPrice === undefined ? undefined : pesosToCents(query.minPrice),
       maxPriceCents: query.maxPrice === undefined ? undefined : pesosToCents(query.maxPrice),
       featured: query.featured,
@@ -57,6 +59,14 @@ export class StorefrontController {
   @ApiOkResponse({ type: ProductDetailResponse })
   async product(@Param('slug') slug: string): Promise<ProductDetailResponse> {
     return toProductDetail(await this.storefront.getProduct(slug));
+  }
+
+  @Get('products/:slug/related')
+  @Header('Cache-Control', CACHE)
+  @ApiOperation({ summary: 'Productos de la misma categoría o del mismo artesano' })
+  @ApiOkResponse({ type: [ProductCardResponse] })
+  async related(@Param('slug') slug: string): Promise<ProductCardResponse[]> {
+    return (await this.storefront.related(slug, 4)).map(toProductCard);
   }
 
   @Get('categories')
@@ -103,6 +113,14 @@ export class StorefrontController {
   @ApiOkResponse({ type: [String] })
   materials(): Promise<string[]> {
     return this.storefront.listMaterials();
+  }
+
+  @Get('techniques')
+  @Header('Cache-Control', CACHE)
+  @ApiOperation({ summary: 'Técnicas de los productos publicados (para filtros)' })
+  @ApiOkResponse({ type: [String] })
+  techniques(): Promise<string[]> {
+    return this.storefront.listTechniques();
   }
 
   @Get('sitemap')

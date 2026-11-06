@@ -83,14 +83,32 @@ export class ConfirmPaymentDto extends OrderAccessDto {
   transactionId!: string;
 }
 
+export class WidgetSignature {
+  @ApiProperty() integrity!: string;
+}
+
+/** Parámetros del Widget de Wompi (checkout.wompi.co/widget.js). */
+export class WompiWidgetParams {
+  @ApiProperty() publicKey!: string;
+  @ApiProperty() currency!: string;
+  @ApiProperty() amountInCents!: number;
+  @ApiProperty() reference!: string;
+  @ApiProperty({ type: WidgetSignature }) signature!: WidgetSignature;
+  @ApiProperty() redirectUrl!: string;
+  @ApiProperty({ nullable: true, type: String }) expirationTime!: string | null;
+}
+
 export class StartPaymentResponse {
   @ApiProperty({ enum: ['checkout', 'free'], description: 'free: total 0, ya quedó pagado' })
   kind!: 'checkout' | 'free';
   @ApiPropertyOptional() reference?: string;
   @ApiPropertyOptional({ description: 'URL del Web Checkout (redirigir al cliente aquí)' })
   checkoutUrl?: string;
-  @ApiPropertyOptional({ type: Object, description: 'Parámetros para el Widget de Wompi' })
-  widget?: unknown;
+  @ApiPropertyOptional({
+    type: WompiWidgetParams,
+    description: 'Parámetros para el Widget de Wompi',
+  })
+  widget?: WompiWidgetParams;
   @ApiPropertyOptional({ type: OrderResponse }) order?: OrderResponse;
 }
 
@@ -234,11 +252,12 @@ export class OrderPaymentsController {
     @MaybeCurrentUser() user: AuthenticatedUser | null,
     @Param('orderNumber') orderNumber: string,
     @Body() body: OrderAccessDto,
+    @Headers('x-order-token') headerToken: string | undefined,
   ): Promise<StartPaymentResponse> {
     const started = await this.payments.start({
       orderNumber,
       userId: user?.id ?? null,
-      token: body.token ?? null,
+      token: headerToken ?? body.token ?? null,
     });
     return started.kind === 'free'
       ? { kind: 'free', order: toOrderResponse(started.order) }
@@ -263,10 +282,11 @@ export class OrderPaymentsController {
     @MaybeCurrentUser() user: AuthenticatedUser | null,
     @Param('orderNumber') orderNumber: string,
     @Body() body: ConfirmPaymentDto,
+    @Headers('x-order-token') headerToken: string | undefined,
   ): Promise<OrderResponse> {
     return toOrderResponse(
       await this.payments.confirmFromRedirect(
-        { orderNumber, userId: user?.id ?? null, token: body.token ?? null },
+        { orderNumber, userId: user?.id ?? null, token: headerToken ?? body.token ?? null },
         body.transactionId,
       ),
     );
