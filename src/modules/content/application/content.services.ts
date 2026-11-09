@@ -11,6 +11,9 @@ import { deleteImageQuietly, withUploadedImage } from '../../catalog/application
 import {
   type BannerInput,
   type BannerProps,
+  changeStoreRoute,
+  type StoreRouteChanges,
+  type StoreRouteProps,
   type ContactMessageProps,
   type ContactStatus,
   EMPTY_SETTINGS,
@@ -58,6 +61,11 @@ export interface ContentRepository {
 
   getSettings(): Promise<StoreSettings | null>;
   saveSettings(s: StoreSettings): Promise<void>;
+
+  /** Rutas del storefront ordenadas por sortOrder. */
+  listRoutes(): Promise<StoreRouteProps[]>;
+  findRoute(key: string): Promise<StoreRouteProps | null>;
+  saveRoute(r: StoreRouteProps): Promise<void>;
 }
 export const CONTENT_REPOSITORY = Symbol('ContentRepository');
 
@@ -125,6 +133,12 @@ export class PublicContent {
     return this.repo.listFaqs(true);
   }
 
+  async pages(): Promise<PageProps[]> {
+    return (await this.repo.listPages())
+      .filter((p) => p.isPublished)
+      .sort((x, y) => x.title.localeCompare(y.title, 'es'));
+  }
+
   async page(slug: string): Promise<PageProps> {
     const page = await this.repo.findPageBySlug(slug.toLowerCase());
     if (!page?.isPublished) throw new NotFoundError('Página', slug);
@@ -133,6 +147,11 @@ export class PublicContent {
 
   async settings(): Promise<StoreSettings> {
     return (await this.repo.getSettings()) ?? EMPTY_SETTINGS;
+  }
+
+  /** Todas las rutas (activas e inactivas): el storefront necesita ambas para bloquear las apagadas. */
+  navigation(): Promise<StoreRouteProps[]> {
+    return this.repo.listRoutes();
   }
 }
 
@@ -374,6 +393,26 @@ export class ContentAdministration {
       await this.repo.saveSettings(settings);
       await this.record(actor, 'store_settings.updated', 'StoreSetting', 'store');
       return settings;
+    });
+  }
+
+  // Navegación del storefront
+
+  listRoutes(): Promise<StoreRouteProps[]> {
+    return this.repo.listRoutes();
+  }
+
+  updateRoute(actor: Actor, key: string, changes: StoreRouteChanges): Promise<StoreRouteProps> {
+    return this.unitOfWork.execute(async () => {
+      const current = await this.repo.findRoute(key);
+      if (!current) throw new NotFoundError('Ruta', key);
+      const route = changeStoreRoute(current, changes, this.clock.now());
+      await this.repo.saveRoute(route);
+      await this.record(actor, 'store_route.updated', 'StoreRoute', key, {
+        fields: Object.keys(changes),
+        ...(changes.isEnabled !== undefined ? { isEnabled: changes.isEnabled } : {}),
+      });
+      return route;
     });
   }
 

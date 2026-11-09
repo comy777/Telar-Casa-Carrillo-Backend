@@ -202,6 +202,7 @@ export interface SocialLink {
 
 /** Ajustes públicos: lo que el storefront muestra en el pie, el inicio y el contacto. */
 export interface StoreSettings {
+  storeName: string | null;
   tagline: string | null;
   location: string | null;
   contactEmail: string | null;
@@ -214,6 +215,7 @@ export interface StoreSettings {
 }
 
 export const EMPTY_SETTINGS: StoreSettings = {
+  storeName: null,
   tagline: null,
   location: null,
   contactEmail: null,
@@ -236,6 +238,7 @@ export function validateSettings(input: StoreSettings): StoreSettings {
     throw new BusinessRuleViolation('Puedes agregar hasta 8 redes', 'TOO_MANY_LINKS');
   }
   return {
+    storeName: optionalText(input.storeName, 'nombre de la tienda', 80),
     tagline: optionalText(input.tagline, 'descripción corta', 200),
     location: optionalText(input.location, 'ubicación', 120),
     contactEmail,
@@ -298,4 +301,54 @@ export function normalizeEmail(value: string): string {
   if (!EMAIL.test(email))
     throw new BusinessRuleViolation('El correo no es válido', 'INVALID_EMAIL');
   return email;
+}
+
+/* ---------- Navegación del storefront ---------- */
+
+export const FOOTER_GROUPS = ['SHOP', 'HELP', 'INFO'] as const;
+export type FooterGroup = (typeof FOOTER_GROUPS)[number];
+
+/**
+ * Una ruta del storefront. El catálogo (clave y prefijo) lo fija el código de la tienda;
+ * desde el panel se edita si está activa, su texto y dónde aparece en el menú y el pie.
+ */
+export interface StoreRouteProps {
+  key: string;
+  path: string;
+  label: string;
+  description: string | null;
+  isEnabled: boolean;
+  isLocked: boolean;
+  showInHeader: boolean;
+  footerGroup: FooterGroup | null;
+  sortOrder: number;
+  updatedAt: Date;
+}
+
+export type StoreRouteChanges = Partial<
+  Pick<StoreRouteProps, 'label' | 'isEnabled' | 'showInHeader' | 'footerGroup' | 'sortOrder'>
+>;
+
+export function changeStoreRoute(
+  route: StoreRouteProps,
+  changes: StoreRouteChanges,
+  now: Date,
+): StoreRouteProps {
+  const next = { ...route, ...changes };
+  if (route.isLocked && !next.isEnabled) {
+    throw new BusinessRuleViolation(
+      `La ruta "${route.label}" no se puede desactivar`,
+      'ROUTE_LOCKED',
+      { key: route.key },
+    );
+  }
+  if (next.footerGroup !== null && !FOOTER_GROUPS.includes(next.footerGroup)) {
+    throw new BusinessRuleViolation('Columna del pie no válida', 'INVALID_FOOTER_GROUP');
+  }
+  return {
+    ...next,
+    label: text(next.label, 'texto del enlace', 40),
+    sortOrder: order(next.sortOrder),
+    updatedAt: now,
+  };
 }

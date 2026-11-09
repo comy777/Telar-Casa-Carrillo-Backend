@@ -15,6 +15,7 @@ import {
   EMPTY_SETTINGS,
   type FaqProps,
   type PageProps,
+  type StoreRouteProps,
   type StoreSettings,
   type TestimonialProps,
 } from '../domain/content';
@@ -152,6 +153,29 @@ export class PrismaContentRepository implements ContentRepository {
       where: { key: SETTINGS_KEY },
       create: { key: SETTINGS_KEY, value },
       update: { value },
+    });
+  }
+
+  listRoutes(): Promise<StoreRouteProps[]> {
+    return this.db.client.storeRoute.findMany({ orderBy: [{ sortOrder: 'asc' }, { key: 'asc' }] });
+  }
+
+  findRoute(key: string): Promise<StoreRouteProps | null> {
+    return this.db.client.storeRoute.findUnique({ where: { key } });
+  }
+
+  /** Solo actualiza: las rutas las crea la migración, no el panel. */
+  async saveRoute({
+    key,
+    label,
+    isEnabled,
+    showInHeader,
+    footerGroup,
+    sortOrder,
+  }: StoreRouteProps) {
+    await this.db.client.storeRoute.update({
+      where: { key },
+      data: { label, isEnabled, showInHeader, footerGroup, sortOrder },
     });
   }
 }

@@ -1,4 +1,6 @@
 import {
+  changeStoreRoute,
+  type StoreRouteProps,
   type BannerProps,
   isBannerLive,
   newContactMessage,
@@ -91,5 +93,46 @@ describe('contenido', () => {
     expect(m.email).toBe('ana@correo.com');
     expect(m.name).toBe('Ana');
     expect(m.status).toBe('NEW');
+  });
+});
+
+describe('rutas del storefront', () => {
+  const ruta = (over: Partial<StoreRouteProps> = {}): StoreRouteProps => ({
+    key: 'contacto',
+    path: '/contacto',
+    label: 'Contacto',
+    description: null,
+    isEnabled: true,
+    isLocked: false,
+    showInHeader: false,
+    footerGroup: 'HELP',
+    sortOrder: 100,
+    updatedAt: new Date('2026-01-01'),
+    ...over,
+  });
+  const now = new Date('2026-11-09');
+
+  it('desactiva una ruta y conserva lo demás', () => {
+    const r = changeStoreRoute(ruta(), { isEnabled: false, label: '  Escríbenos ' }, now);
+    expect(r).toMatchObject({
+      isEnabled: false,
+      label: 'Escríbenos',
+      path: '/contacto',
+      updatedAt: now,
+    });
+  });
+
+  it('no deja desactivar una ruta bloqueada, pero sí moverla', () => {
+    expect(() => changeStoreRoute(ruta({ isLocked: true }), { isEnabled: false }, now)).toThrow(
+      'no se puede desactivar',
+    );
+    expect(changeStoreRoute(ruta({ isLocked: true }), { footerGroup: null }, now).footerGroup).toBe(
+      null,
+    );
+  });
+
+  it('valida texto y orden', () => {
+    expect(() => changeStoreRoute(ruta(), { label: ' ' }, now)).toThrow();
+    expect(() => changeStoreRoute(ruta(), { sortOrder: -1 }, now)).toThrow();
   });
 });

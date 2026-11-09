@@ -106,7 +106,9 @@ export async function createTestApp(): Promise<TestApp> {
           "ShippingMethod", "Address",
           "StockReservation", "CartItem", "Cart", "InventoryMovement", "Inventory",
           "ProductImage", "ProductVariant", "ProductCategory", "ProductMaterial", "Product",
-          "Material", "Category", "Artisan" CASCADE`,
+          "ProductTechnique", "Technique", "Material", "Category", "Artisan",
+          "Banner", "Page", "Testimonial", "Faq", "NewsletterSubscriber", "ContactMessage",
+          "StoreSetting" CASCADE`,
       );
       emails.clear();
       images.clear();

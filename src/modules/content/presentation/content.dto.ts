@@ -16,6 +16,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { PaginationQuery } from '../../../shared/presentation/pagination.dto';
+import { FOOTER_GROUPS, type FooterGroup, type StoreRouteProps } from '../domain/content';
 import type {
   BannerProps,
   ContactMessageProps,
@@ -289,6 +290,19 @@ export class PageDto {
 
 export class UpdatePageDto extends PartialType(PageDto) {}
 
+/** Enlace a una página publicada, para el pie y el mapa del sitio. */
+export class PageLinkResponse {
+  @ApiProperty() slug!: string;
+  @ApiProperty() title!: string;
+  @ApiProperty({ type: String, format: 'date-time' }) updatedAt!: Date;
+}
+
+export const toPageLinkResponse = (p: PageProps): PageLinkResponse => ({
+  slug: p.slug,
+  title: p.title,
+  updatedAt: p.updatedAt,
+});
+
 export class PageResponse {
   @ApiProperty() slug!: string;
   @ApiProperty() title!: string;
@@ -330,6 +344,11 @@ export class SocialLinkDto {
 }
 
 export class StoreSettingsDto {
+  @ApiPropertyOptional({ nullable: true, type: String, example: 'Telar Casa Carrillo' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  storeName?: string | null;
   @ApiPropertyOptional({ nullable: true, type: String })
   @IsOptional()
   @IsString()
@@ -386,6 +405,7 @@ export class SocialLinkResponse {
 }
 
 export class PublicSettingsResponse {
+  @ApiProperty({ nullable: true, type: String }) storeName!: string | null;
   @ApiProperty({ nullable: true, type: String }) tagline!: string | null;
   @ApiProperty({ nullable: true, type: String }) location!: string | null;
   @ApiProperty({ nullable: true, type: String }) contactEmail!: string | null;
@@ -400,6 +420,7 @@ export class PublicSettingsResponse {
 export const toSettingsResponse = (s: StoreSettings): PublicSettingsResponse => ({ ...s });
 
 export const settingsFromDto = (dto: StoreSettingsDto): StoreSettings => ({
+  storeName: dto.storeName ?? null,
   tagline: dto.tagline ?? null,
   location: dto.location ?? null,
   contactEmail: dto.contactEmail ?? null,
@@ -529,3 +550,74 @@ export const toContactResponse = ({
 export class ReceivedResponse {
   @ApiProperty({ example: true }) ok!: boolean;
 }
+
+/* ---------- Navegación del storefront ---------- */
+
+export class StoreRouteResponse {
+  @ApiProperty({ example: 'contacto' }) key!: string;
+  @ApiProperty({ example: '/contacto', description: 'Prefijo: también cubre sus subrutas' })
+  path!: string;
+  @ApiProperty() label!: string;
+  @ApiProperty() isEnabled!: boolean;
+  @ApiProperty() showInHeader!: boolean;
+  @ApiProperty({ enum: FOOTER_GROUPS, enumName: 'FooterGroup', nullable: true })
+  footerGroup!: FooterGroup | null;
+  @ApiProperty() sortOrder!: number;
+}
+
+export class AdminStoreRouteResponse extends StoreRouteResponse {
+  @ApiProperty({ nullable: true, type: String }) description!: string | null;
+  @ApiProperty({ description: 'No se puede desactivar' }) isLocked!: boolean;
+  @ApiProperty() updatedAt!: Date;
+}
+
+export class UpdateStoreRouteDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  label?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  isEnabled?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  showInHeader?: boolean;
+
+  @ApiPropertyOptional({
+    enum: FOOTER_GROUPS,
+    enumName: 'FooterGroup',
+    nullable: true,
+    description: 'null la quita del pie',
+  })
+  @IsOptional()
+  @IsIn(FOOTER_GROUPS)
+  footerGroup?: FooterGroup | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(10000)
+  sortOrder?: number;
+}
+
+export const toStoreRouteResponse = (r: StoreRouteProps): StoreRouteResponse => ({
+  key: r.key,
+  path: r.path,
+  label: r.label,
+  isEnabled: r.isEnabled,
+  showInHeader: r.showInHeader,
+  footerGroup: r.footerGroup,
+  sortOrder: r.sortOrder,
+});
+export const toAdminStoreRouteResponse = (r: StoreRouteProps): AdminStoreRouteResponse => ({
+  ...toStoreRouteResponse(r),
+  description: r.description,
+  isLocked: r.isLocked,
+  updatedAt: r.updatedAt,
+});

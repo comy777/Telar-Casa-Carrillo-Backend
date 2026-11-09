@@ -43,6 +43,11 @@ import {
   AdminBannerResponse,
   AdminFaqResponse,
   AdminPageResponse,
+  AdminStoreRouteResponse,
+  StoreRouteResponse,
+  toAdminStoreRouteResponse,
+  toStoreRouteResponse,
+  UpdateStoreRouteDto,
   AdminTestimonialResponse,
   BannerResponse,
   ContactDto,
@@ -55,6 +60,7 @@ import {
   FaqResponse,
   NewsletterTokenDto,
   PageDto,
+  PageLinkResponse,
   PageResponse,
   PublicSettingsResponse,
   ReceivedResponse,
@@ -72,6 +78,7 @@ import {
   toBannerResponse,
   toContactResponse,
   toFaqResponse,
+  toPageLinkResponse,
   toPageResponse,
   toSettingsResponse,
   toSubscriberResponse,
@@ -108,6 +115,16 @@ export class PublicContentController {
     return toSettingsResponse(await this.content.settings());
   }
 
+  @Get('navigation')
+  @Header('Cache-Control', CACHE)
+  @ApiOperation({
+    summary: 'Rutas del storefront: cuáles están activas y dónde van en el menú y el pie',
+  })
+  @ApiOkResponse({ type: [StoreRouteResponse] })
+  async navigation(): Promise<StoreRouteResponse[]> {
+    return (await this.content.navigation()).map(toStoreRouteResponse);
+  }
+
   @Get('banners')
   @Header('Cache-Control', CACHE)
   @ApiOperation({ summary: 'Banners vigentes, en orden' })
@@ -128,6 +145,16 @@ export class PublicContentController {
   @ApiOkResponse({ type: [FaqResponse] })
   async faqs(): Promise<FaqResponse[]> {
     return (await this.content.faqs()).map(toFaqResponse);
+  }
+
+  @Get('pages')
+  @Header('Cache-Control', CACHE)
+  @ApiOperation({
+    summary: 'Páginas publicadas (título y enlace), para el pie y el mapa del sitio',
+  })
+  @ApiOkResponse({ type: [PageLinkResponse] })
+  async pages(): Promise<PageLinkResponse[]> {
+    return (await this.content.pages()).map(toPageLinkResponse);
   }
 
   @Get('pages/:slug')
@@ -429,6 +456,30 @@ export class AdminContentController {
     @Req() request: Request,
   ): Promise<void> {
     await this.admin.deletePage(actorOf(user, request), id);
+  }
+
+  // Navegación del storefront
+
+  @Get('navigation')
+  @RequirePermissions(PERMISSIONS.CONTENT_MANAGE)
+  @ApiOkResponse({ type: [AdminStoreRouteResponse] })
+  async routes(): Promise<AdminStoreRouteResponse[]> {
+    return (await this.admin.listRoutes()).map(toAdminStoreRouteResponse);
+  }
+
+  @Patch('navigation/:key')
+  @RequirePermissions(PERMISSIONS.CONTENT_MANAGE)
+  @ApiOperation({ summary: 'Activa, desactiva, renombra o reubica una ruta del storefront' })
+  @ApiOkResponse({ type: AdminStoreRouteResponse })
+  async updateRoute(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('key') key: string,
+    @Body() body: UpdateStoreRouteDto,
+    @Req() request: Request,
+  ): Promise<AdminStoreRouteResponse> {
+    return toAdminStoreRouteResponse(
+      await this.admin.updateRoute(actorOf(user, request), key, present(body)),
+    );
   }
 
   // Ajustes
