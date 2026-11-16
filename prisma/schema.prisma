@@ -797,3 +797,28 @@ model AuditLog {
   @@index([actorId, createdAt])
   @@index([resource, resourceId])
 }
+
+/// Columna del pie donde aparece una ruta del storefront.
+enum FooterGroup {
+  SHOP
+  HELP
+  INFO
+}
+
+/// Rutas del storefront: se activan o desactivan y se ubican en el menú y el pie desde el panel.
+/// El catálogo de rutas lo define el código del storefront (cada clave es una página que existe);
+/// la migración siembra las filas y el panel solo las edita.
+model StoreRoute {
+  key          String       @id
+  /// Prefijo que gobierna la ruta: "/cuenta" cubre también "/cuenta/pedidos".
+  path         String       @unique
+  label        String
+  description  String?
+  isEnabled    Boolean      @default(true)
+  /// Rutas que no se pueden desactivar (inicio, páginas legales).
+  isLocked     Boolean      @default(false)
+  showInHeader Boolean      @default(false)
+  footerGroup  FooterGroup?
+  sortOrder    Int          @default(0)
+  updatedAt    DateTime     @updatedAt
+}
