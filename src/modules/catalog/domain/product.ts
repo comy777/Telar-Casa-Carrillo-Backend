@@ -269,6 +269,10 @@ export class Product {
   get categoryIds(): readonly string[] {
     return this.props.categoryIds;
   }
+  get imageCount(): number {
+    return this.props.images.length;
+  }
+
   get isPublished(): boolean {
     return this.props.status === 'ACTIVE';
   }

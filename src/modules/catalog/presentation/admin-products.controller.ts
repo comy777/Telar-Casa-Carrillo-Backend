@@ -27,7 +27,7 @@ import {
 import { requestContextOf } from '../../../shared/presentation/request-context';
 import { PERMISSIONS } from '../../identity/domain/permissions';
 import { type Actor, ProductAdministration } from '../application/product-administration.service';
-import { AcceptsImage, UploadedImage } from './image-upload';
+import { AcceptsImage, AcceptsImages, UploadedImage, UploadedImages } from './image-upload';
 import {
   provided,
   toAdminProduct,
@@ -46,6 +46,7 @@ import {
   UpdateProductImageDto,
   UpdateVariantDto,
   UploadProductImageDto,
+  UploadProductImagesDto,
   VariantDto,
 } from './product.dto';
 
@@ -181,6 +182,28 @@ export class AdminProductsController {
         altText: body.altText,
         variantId: body.variantId,
       }),
+    );
+  }
+
+  @Post(':id/images/batch')
+  @RequirePermissions(PERMISSIONS.CATALOG_MANAGE)
+  @AcceptsImages(UploadProductImagesDto)
+  @ApiOperation({
+    summary: 'Sube varias imágenes en orden (hasta 10); entran todas o ninguna',
+  })
+  @ApiCreatedResponse({ type: AdminProductResponse })
+  async addImages(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @UploadedImages() files: Express.Multer.File[],
+    @Req() request: Request,
+  ): Promise<AdminProductResponse> {
+    return toAdminProduct(
+      await this.products.addImages(
+        actorOf(user, request),
+        id,
+        files.map((f) => ({ data: f.buffer })),
+      ),
     );
   }
 

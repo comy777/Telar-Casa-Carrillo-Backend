@@ -290,6 +290,60 @@ describe('Catálogo (e2e, base de datos real)', () => {
       expect(t.images.files.size).toBe(0);
     });
 
+    describe('subida de varias imágenes', () => {
+      const batch = (productId: string, files: Buffer[]) =>
+        files.reduce(
+          (req, data, i) => req.attach('files', data, `foto-${i}.png`),
+          admin().post(`/products/${productId}/images/batch`),
+        );
+
+      it('agrega todas en orden y la primera queda como principal', async () => {
+        const product = await createProduct();
+        const res = await batch(product.id, [PNG, PNG, PNG]).expect(201);
+        const images = (res.body as ProductBody).images;
+        expect(images).toHaveLength(3);
+        expect(images.map((i) => i.isPrimary)).toEqual([true, false, false]);
+        expect(t.images.files.size).toBe(3);
+
+        // Una segunda tanda se suma sin cambiar la principal.
+        const more = await batch(product.id, [PNG]).expect(201);
+        expect((more.body as ProductBody).images.filter((i) => i.isPrimary)).toHaveLength(1);
+        expect(t.images.files.size).toBe(4);
+      });
+
+      it('si una no es válida no guarda ninguna ni deja archivos', async () => {
+        const product = await createProduct();
+        await batch(product.id, [PNG, Buffer.from('no soy una imagen')]).expect(422);
+        const detail = await admin().get(`/products/${product.id}`).expect(200);
+        expect((detail.body as ProductBody).images).toHaveLength(0);
+        expect(t.images.files.size).toBe(0);
+      });
+
+      it('borra lo subido si falla el almacenamiento a mitad de la tanda', async () => {
+        const product = await createProduct();
+        const upload = t.images.upload.bind(t.images);
+        let calls = 0;
+        jest.spyOn(t.images, 'upload').mockImplementation((image) => {
+          calls += 1;
+          if (calls === 2) return Promise.reject(new Error('Fallo simulado'));
+          return upload(image);
+        });
+        await batch(product.id, [PNG, PNG, PNG]).expect(500);
+        jest.restoreAllMocks();
+        expect(t.images.files.size).toBe(0);
+      });
+
+      it('rechaza un envío vacío o con más de 10 fotos', async () => {
+        const product = await createProduct();
+        await admin().post(`/products/${product.id}/images/batch`).expect(400);
+        await batch(
+          product.id,
+          Array.from({ length: 11 }, () => PNG),
+        ).expect(400);
+        expect(t.images.files.size).toBe(0);
+      });
+    });
+
     it('cambia la imagen principal y borra el archivo al quitarla', async () => {
       const product = await createProduct();
       await uploadImage(product.id).expect(201);

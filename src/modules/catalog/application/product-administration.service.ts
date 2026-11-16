@@ -11,6 +11,7 @@ import { UNIT_OF_WORK, type UnitOfWork } from '../../../shared/application/unit-
 import { BusinessRuleViolation, NotFoundError } from '../../../shared/domain/errors';
 import {
   type ImageChanges,
+  MAX_IMAGES_PER_PRODUCT,
   type NewVariant,
   Product,
   type ProductChanges,
@@ -18,7 +19,8 @@ import {
   type ProductStatus,
   type VariantChanges,
 } from '../domain/product';
-import { deleteImageQuietly, withUploadedImage } from './media';
+import { deleteImageQuietly, uploadImage, withUploadedImage } from './media';
+import type { StoredImage } from '../../../shared/application/image-storage';
 import {
   type AdminProductQuery,
   ARTISAN_REPOSITORY,
@@ -122,6 +124,45 @@ export class ProductAdministration {
         return Promise.resolve({ imageId: added.id });
       }),
     );
+  }
+
+  /**
+   * Sube varias imágenes y las agrega en una sola transacción: o entran todas o
+   * ninguna. Si algo falla, se borran los archivos que alcanzaron a subirse.
+   */
+  async addImages(actor: Actor, id: string, images: NewProductImage[]): Promise<Product> {
+    if (images.length === 0) {
+      throw new BusinessRuleViolation('Envía al menos una imagen', 'IMAGES_REQUIRED');
+    }
+    const current = await this.require(id);
+    // Se valida el cupo antes de subir nada.
+    if (current.imageCount + images.length > MAX_IMAGES_PER_PRODUCT) {
+      throw new BusinessRuleViolation(
+        `Máximo ${MAX_IMAGES_PER_PRODUCT} imágenes por producto`,
+        'TOO_MANY_IMAGES',
+        { max: MAX_IMAGES_PER_PRODUCT, current: current.imageCount },
+      );
+    }
+    const uploaded: Array<{ stored: StoredImage; image: NewProductImage }> = [];
+    try {
+      for (const image of images) {
+        uploaded.push({ stored: await uploadImage(this.storage, image.data, 'products'), image });
+      }
+      return await this.mutate(actor, id, 'product.images_added', (product) => {
+        const added = uploaded.map(({ stored, image }) =>
+          product.addImage({
+            url: stored.url,
+            storageKey: stored.key,
+            altText: image.altText,
+            variantId: image.variantId,
+          }),
+        );
+        return Promise.resolve({ imageIds: added.map((a) => a.id) });
+      });
+    } catch (error) {
+      await Promise.all(uploaded.map((u) => deleteImageQuietly(this.storage, u.stored.key)));
+      throw error;
+    }
   }
 
   updateImage(actor: Actor, id: string, imageId: string, changes: ImageChanges): Promise<Product> {

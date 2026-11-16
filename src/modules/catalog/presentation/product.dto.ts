@@ -224,6 +224,16 @@ export class UploadProductImageDto extends ProductImageFieldsDto {
   file!: unknown;
 }
 
+/** Solo para la documentación OpenAPI: subida de varias imágenes. */
+export class UploadProductImagesDto {
+  @ApiProperty({
+    type: 'array',
+    items: { type: 'string', format: 'binary' },
+    description: 'Hasta 10 imágenes JPEG, PNG o WebP de máx. 5 MB cada una, en orden',
+  })
+  files!: unknown[];
+}
+
 export class UpdateProductImageDto {
   @ApiPropertyOptional({ nullable: true, type: String })
   @IsOptional()
