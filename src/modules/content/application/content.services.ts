@@ -472,12 +472,14 @@ export class Newsletter {
       unsubscribedAt: null,
       createdAt: existing?.createdAt ?? now,
     });
+    // El mismo token sirve para confirmar y para darse de baja (páginas /boletin/confirmar y /boletin/baja).
     const link = `${this.settings.storefrontUrl}/boletin/confirmar?token=${token}`;
+    const unsubscribeLink = `${this.settings.storefrontUrl}/boletin/baja?token=${token}`;
     try {
       await this.email.send({
         to: email,
         subject: 'Confirma tu suscripción a Telar Casa Carrillo',
-        text: `Hola.\n\nPara recibir un correo cuando haya piezas nuevas del telar, confirma aquí:\n${link}\n\nSi no fuiste tú, ignora este mensaje.`,
+        text: `Hola.\n\nPara recibir un correo cuando haya piezas nuevas del telar, confirma aquí:\n${link}\n\nSi no fuiste tú, ignora este mensaje.\n\nPara darte de baja en cualquier momento:\n${unsubscribeLink}`,
       });
     } catch (error) {
       this.logger.warn({ err: error }, 'No se pudo enviar la confirmación del boletín');

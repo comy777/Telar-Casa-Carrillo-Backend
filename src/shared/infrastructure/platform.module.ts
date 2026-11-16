@@ -1,5 +1,6 @@
 import { Global, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { APP_INTERCEPTOR } from '@nestjs/core';
 import { CLOCK, type Clock } from '../application/clock';
 import { DOMAIN_EVENTS } from '../application/domain-events';
 import { EMAIL_SENDER, type EmailSender } from '../application/email-sender';
@@ -10,6 +11,10 @@ import { InProcessEventBus } from './events/in-process-event-bus';
 import { SmtpEmailSender } from './email/smtp-email-sender';
 import { CloudinaryImageStorage } from './storage/cloudinary-image-storage';
 import { LocalImageStorage } from './storage/local-image-storage';
+import {
+  StorefrontRevalidationInterceptor,
+  StorefrontRevalidator,
+} from './storefront/storefront-revalidation';
 
 const systemClock: Clock = { now: () => new Date() };
 
@@ -54,6 +59,19 @@ const systemClock: Clock = { now: () => new Date() };
         });
       },
     },
+    {
+      // Avisa al storefront (Next.js) cuando el panel cambia catálogo o contenido.
+      provide: StorefrontRevalidator,
+      inject: [ConfigService],
+      useFactory: (config: ConfigService<Env, true>) =>
+        new StorefrontRevalidator({
+          url:
+            config.get('STOREFRONT_REVALIDATE_URL', { infer: true }) ??
+            `${config.get('STOREFRONT_URL', { infer: true })}/api/revalidate`,
+          secret: config.get('STOREFRONT_REVALIDATE_SECRET', { infer: true }),
+        }),
+    },
+    { provide: APP_INTERCEPTOR, useClass: StorefrontRevalidationInterceptor },
   ],
   exports: [CLOCK, EMAIL_SENDER, IMAGE_STORAGE, DOMAIN_EVENTS],
 })

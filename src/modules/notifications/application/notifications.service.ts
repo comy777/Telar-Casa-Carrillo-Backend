@@ -49,7 +49,8 @@ export class NotificationsService implements OnModuleInit {
         `El pago del pedido ${event.orderNumber} necesita revisión (${event.reason}).`,
         'Normalmente hay que reembolsarlo.',
         '',
-        `${this.settings.adminUrl}/pagos?revision=1`,
+        // Mismos parámetros que lee el filtro de la página Pagos del panel.
+        `${this.settings.adminUrl}/pagos?pedido=${encodeURIComponent(event.orderNumber)}&revisar=1`,
       ]),
     );
     this.events.subscribe('stock.low', (event) =>

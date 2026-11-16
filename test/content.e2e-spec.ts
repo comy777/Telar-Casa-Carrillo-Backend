@@ -35,7 +35,8 @@ describe('Contenido público editable desde el panel (e2e)', () => {
       expect.objectContaining({ slug: 'envios', title: 'Envíos' }),
       expect.objectContaining({ slug: 'terminos-y-condiciones', title: 'Términos y condiciones' }),
     ]);
-    expect(res.body[0]).not.toHaveProperty('body');
+    const [primera] = res.body as Array<Record<string, unknown>>;
+    expect(primera).not.toHaveProperty('body');
   });
 
   it('guarda el nombre de la tienda y lo expone en los ajustes públicos', async () => {

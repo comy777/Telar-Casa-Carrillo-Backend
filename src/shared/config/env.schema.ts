@@ -65,6 +65,12 @@ export const envSchema = z
 
     // URL pública de la tienda: los enlaces de los correos apuntan aquí.
     STOREFRONT_URL: z.string().refine(isHttpOrigin, 'Debe tener la forma http(s)://host[:puerto]'),
+    // Revalidación de la tienda: al publicar cambios desde el panel, la API avisa al
+    // storefront (POST /api/revalidate) para que no espere a que venza su caché.
+    // El secreto debe ser igual a REVALIDATE_SECRET del storefront; sin él no se avisa.
+    STOREFRONT_REVALIDATE_SECRET: optional(z.string().min(16, 'Debe tener al menos 16 caracteres')),
+    // Por defecto <STOREFRONT_URL>/api/revalidate; útil si la tienda tiene una URL interna.
+    STOREFRONT_REVALIDATE_URL: optional(z.string().url()),
     // Panel de administración: los enlaces de las alertas apuntan aquí.
     ADMIN_URL: z
       .string()
@@ -211,6 +217,10 @@ export const envSchema = z
       env.SMTP_HOST,
     ), 'SMTP_HOST', 'En producción los correos deben enviarse por SMTP');
     require(Boolean(env.EMAIL_FROM), 'EMAIL_FROM', 'En producción debe definirse el remitente');
+    require(!env.STOREFRONT_REVALIDATE_SECRET ||
+      !PLACEHOLDER_SECRET.test(
+        env.STOREFRONT_REVALIDATE_SECRET,
+      ), 'STOREFRONT_REVALIDATE_SECRET', 'En producción no se puede usar el valor de ejemplo');
     require(env.STOREFRONT_URL.startsWith(
       'https://',
     ), 'STOREFRONT_URL', 'En producción la tienda debe usar HTTPS');

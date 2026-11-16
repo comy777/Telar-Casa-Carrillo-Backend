@@ -15,4 +15,6 @@ export const TEST_ENV: Record<string, string> = {
   STOREFRONT_URL: 'http://localhost:3000',
   JWT_ACCESS_SECRET: 'e2e-test-secret-with-at-least-32-characters',
   SMTP_HOST: '',
+  // Las pruebas no avisan a ninguna tienda.
+  STOREFRONT_REVALIDATE_SECRET: '',
 };

@@ -24,6 +24,7 @@ Todas están documentadas en `.env.example`. La API se niega a arrancar en produ
 Además:
 - `TRUST_PROXY`: número de proxies delante de la API (normalmente `1`). Si no se configura, el límite de peticiones y la auditoría ven la IP del proxy.
 - `ADMIN_ALERT_EMAILS`: correos que reciben pedidos pagados y alertas.
+- `STOREFRONT_REVALIDATE_SECRET`: igual a `REVALIDATE_SECRET` del storefront. Con él, cada cambio del panel en catálogo, inventario o contenido avisa a la tienda (`POST <STOREFRONT_URL>/api/revalidate`, o `STOREFRONT_REVALIDATE_URL` si la tienda tiene una URL interna) y se ve de inmediato; sin él, la tienda se actualiza al vencer su caché (1 a 5 minutos).
 - `LOG_LEVEL=info`.
 
 ### Secretos
