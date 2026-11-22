@@ -97,6 +97,8 @@ class OperationsSummary {
   @ApiProperty() lowStockVariants!: number;
   @ApiProperty() outOfStockVariants!: number;
   @ApiProperty() newContactMessages!: number;
+  @ApiProperty({ description: 'Solicitudes de cotización en estado NEW' })
+  newQuoteRequests!: number;
 }
 
 export class MetricsResponse {

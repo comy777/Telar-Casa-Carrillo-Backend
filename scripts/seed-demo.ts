@@ -219,6 +219,25 @@ const PRODUCTS: DemoProduct[] = [
   },
 ];
 
+/** Actividades del lugar («Visítanos»): sin imagen; la familia sube las fotos reales. */
+const VENUE_ACTIVITIES = [
+  { name: 'Comida', description: '[DEMO] Aquí va qué se puede comer en el lugar.' },
+  { name: 'Banquitas', description: '[DEMO] Aquí va cómo es la cancha de banquitas.' },
+  { name: 'Ping pong', description: '[DEMO] Aquí va cuántas mesas hay y cómo se usan.' },
+  { name: 'Voleibol', description: '[DEMO] Aquí va cómo es la cancha de voleibol.' },
+];
+
+/** Independiente de los productos: se crea aunque ya existan los demás datos de demostración. */
+async function seedVenueActivities(): Promise<void> {
+  if (await prisma.venueActivity.count({ where: { description: { startsWith: '[DEMO]' } } })) {
+    return;
+  }
+  await prisma.venueActivity.createMany({
+    data: VENUE_ACTIVITIES.map((a, i) => ({ ...a, sortOrder: i * 10 })),
+  });
+  console.log(`Creadas ${VENUE_ACTIVITIES.length} actividades del lugar de demostración.`);
+}
+
 async function reset(): Promise<void> {
   const demo = await prisma.product.findMany({
     where: { slug: { startsWith: 'demo-' } },
@@ -230,7 +249,12 @@ async function reset(): Promise<void> {
   await prisma.category.deleteMany({ where: { slug: { startsWith: 'demo-' } } });
   await prisma.artisan.deleteMany({ where: { slug: { startsWith: 'demo-' } } });
   await prisma.shippingMethod.deleteMany({ where: { name: { startsWith: '[DEMO]' } } });
-  console.log(`Borrados ${ids.length} productos de demostración.`);
+  const venue = await prisma.venueActivity.deleteMany({
+    where: { description: { startsWith: '[DEMO]' } },
+  });
+  console.log(
+    `Borrados ${ids.length} productos y ${venue.count} actividades del lugar de demostración.`,
+  );
 }
 
 async function main(): Promise<void> {
@@ -238,6 +262,7 @@ async function main(): Promise<void> {
     await reset();
     return;
   }
+  await seedVenueActivities();
   if (await prisma.product.count({ where: { slug: { startsWith: 'demo-' } } })) {
     console.log('Ya hay datos de demostración. Usa --reset para borrarlos primero.');
     return;

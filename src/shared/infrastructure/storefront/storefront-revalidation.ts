@@ -23,6 +23,7 @@ const RULES: Array<[RegExp, StorefrontCacheTag[]]> = [
   [/^\/api\/v\d+\/admin\/(products|categories|artisans|inventory)(\/|$)/, ['catalog']],
   [/^\/api\/v\d+\/admin\/content\/navigation(\/|$)/, ['navigation', 'content']],
   [/^\/api\/v\d+\/admin\/content\/(banners|testimonials|faqs|pages|settings)(\/|$)/, ['content']],
+  [/^\/api\/v\d+\/admin\/venue(\/|$)/, ['content']],
 ];
 
 /** Etiquetas a revalidar para una petición; vacío si no afecta a la tienda. */

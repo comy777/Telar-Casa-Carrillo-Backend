@@ -44,6 +44,8 @@ export interface Metrics {
     lowStockVariants: number;
     outOfStockVariants: number;
     newContactMessages: number;
+    /** Solicitudes de cotización del lugar sin atender (estado NEW). */
+    newQuoteRequests: number;
   };
 }
 

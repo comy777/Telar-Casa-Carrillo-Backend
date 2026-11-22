@@ -822,3 +822,57 @@ model StoreRoute {
   sortOrder    Int          @default(0)
   updatedAt    DateTime     @updatedAt
 }
+
+/// Qué se cotiza en «Visítanos»: eventos y celebraciones, visitas de grupos o alquiler de canchas.
+enum QuoteKind {
+  EVENT
+  GROUP_VISIT
+  COURT_RENTAL
+}
+
+enum QuoteStatus {
+  NEW
+  IN_PROGRESS
+  QUOTED
+  CLOSED
+}
+
+/// Lo que se puede hacer en el lugar (comida, banquitas, ping pong...). Se edita desde el panel.
+model VenueActivity {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String
+  description String?
+  imageUrl    String?
+  imageKey    String?
+  imageAlt    String?
+  isPublished Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+/// Solicitud de cotización del formulario de «Visítanos».
+model QuoteRequest {
+  id            String      @id @default(uuid()) @db.Uuid
+  kind          QuoteKind
+  name          String
+  email         String
+  phone         String
+  eventDate     DateTime?   @db.Date
+  /// "HH:MM", hora de Colombia.
+  startTime     String?
+  durationHours Int?
+  people        Int?
+  /// Copia de los nombres de las actividades elegidas: no se pierden si la actividad cambia.
+  activityNames String[]
+  includesFood  Boolean     @default(false)
+  message       String?
+  consentAt     DateTime
+  policyVersion String?
+  status        QuoteStatus @default(NEW)
+  adminNotes    String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@index([status, createdAt])
+}

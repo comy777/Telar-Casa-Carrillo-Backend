@@ -91,7 +91,7 @@ export class PrismaReportsReader implements ReportsReader {
         ) s`,
       ]);
 
-    const [customersTotal, customersNew, lowStock, newMessages] = await Promise.all([
+    const [customersTotal, customersNew, lowStock, newMessages, newQuotes] = await Promise.all([
       client.user.count({ where: { roles: { some: { role: { name: 'customer' } } } } }),
       client.user.count({
         where: {
@@ -120,6 +120,7 @@ export class PrismaReportsReader implements ReportsReader {
         ORDER BY "available" ASC, p."name" ASC
         LIMIT 20`,
       client.contactMessage.count({ where: { status: 'NEW' } }),
+      client.quoteRequest.count({ where: { status: 'NEW' } }),
     ]);
 
     return {
@@ -153,6 +154,7 @@ export class PrismaReportsReader implements ReportsReader {
         lowStockVariants: stock[0]?.low ?? 0,
         outOfStockVariants: stock[0]?.out ?? 0,
         newContactMessages: newMessages,
+        newQuoteRequests: newQuotes,
       },
     };
   }

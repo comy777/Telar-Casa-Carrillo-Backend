@@ -11,6 +11,8 @@ describe('storefrontTagsFor', () => {
     ['PUT', '/api/v1/admin/content/settings', ['content']],
     ['DELETE', '/api/v1/admin/content/banners/b1', ['content']],
     ['POST', '/api/v1/admin/content/pages', ['content']],
+    ['PUT', '/api/v1/admin/venue/settings', ['content']],
+    ['PUT', '/api/v1/admin/venue/activities/a1/image', ['content']],
   ])('%s %s → %j', (method, path, tags) => {
     expect(storefrontTagsFor(method, path)).toEqual(tags);
   });
@@ -20,6 +22,8 @@ describe('storefrontTagsFor', () => {
     ['POST', '/api/v1/cart/items'],
     ['PATCH', '/api/v1/admin/orders/o1/status'],
     ['PATCH', '/api/v1/admin/contact-messages/m1'],
+    ['PATCH', '/api/v1/admin/quotes/q1'],
+    ['POST', '/api/v1/venue/quotes'],
     ['POST', '/api/v1/admin/productsx'],
   ])('%s %s no afecta a la tienda', (method, path) => {
     expect(storefrontTagsFor(method, path)).toEqual([]);

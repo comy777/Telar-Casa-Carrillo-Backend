@@ -18,6 +18,7 @@ import { ShippingModule } from './modules/shipping/shipping.module';
 import { HealthModule } from './modules/health/health.module';
 import { IdentityModule } from './modules/identity/identity.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
+import { VenueModule } from './modules/venue/venue.module';
 import { type Env, validateEnv } from './shared/config/env.schema';
 import { LoggingModule } from './shared/infrastructure/logging/logger.module';
 import { PlatformModule } from './shared/infrastructure/platform.module';
@@ -54,6 +55,7 @@ import { PrismaModule } from './shared/infrastructure/prisma/prisma.module';
     ReportsModule,
     PrivacyModule,
     ContentModule,
+    VenueModule,
     HealthModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],

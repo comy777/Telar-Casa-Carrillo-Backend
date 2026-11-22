@@ -20,6 +20,8 @@ export const PERMISSIONS = {
   REPORTS_READ: 'reports:read',
   CONTENT_MANAGE: 'content:manage',
   MESSAGES_READ: 'messages:read',
+  QUOTES_READ: 'quotes:read',
+  QUOTES_MANAGE: 'quotes:manage',
 } as const;
 
 export type PermissionKey = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
@@ -41,8 +43,10 @@ export const PERMISSION_DESCRIPTIONS: Record<PermissionKey, string> = {
   'payments:refund': 'Solicitar reembolsos',
   'reports:read': 'Ver métricas y exportar reportes',
   'content:manage':
-    'Editar banners, testimonios, preguntas frecuentes, páginas y ajustes de la tienda',
+    'Editar banners, testimonios, preguntas frecuentes, páginas, ajustes de la tienda y la página del lugar',
   'messages:read': 'Ver los mensajes de contacto y los suscriptores del boletín',
+  'quotes:read': 'Ver las solicitudes de cotización del lugar',
+  'quotes:manage': 'Cambiar el estado y las notas de las cotizaciones',
 };
 
 export const ROLES = {
