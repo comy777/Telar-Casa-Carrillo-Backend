@@ -257,7 +257,7 @@ export class QuoteDesk {
     const found = valid.activityIds.length
       ? await this.venue.findActivities(valid.activityIds)
       : [];
-    const names = chosenActivityNames(valid.activityIds, found);
+    const names = chosenActivityNames(valid.activityIds, found, valid.kind);
     const quote = newQuoteRequest(valid, names, this.config.privacyPolicyVersion, now);
     await this.quotes.save(quote);
 

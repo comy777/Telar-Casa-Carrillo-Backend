@@ -67,9 +67,14 @@ export function validateVenueSettings(input: VenueSettings): VenueSettings {
 
 export const MAX_ACTIVITIES = 30;
 
+/** GAME: se puede alquilar por horas (canchas, mesas). FOOD: se pide con la casilla de comida. */
+export const ACTIVITY_KINDS = ['GAME', 'FOOD', 'OTHER'] as const;
+export type ActivityKind = (typeof ACTIVITY_KINDS)[number];
+
 export interface VenueActivityProps {
   id: string;
   name: string;
+  kind: ActivityKind;
   description: string | null;
   imageUrl: string | null;
   imageKey: string | null;
@@ -82,12 +87,16 @@ export interface VenueActivityProps {
 
 export type VenueActivityInput = Pick<
   VenueActivityProps,
-  'name' | 'description' | 'imageAlt' | 'isPublished' | 'sortOrder'
+  'name' | 'kind' | 'description' | 'imageAlt' | 'isPublished' | 'sortOrder'
 >;
 
 export function validateActivity(input: VenueActivityInput): VenueActivityInput {
+  if (!ACTIVITY_KINDS.includes(input.kind)) {
+    throw new BusinessRuleViolation('Tipo de actividad no válido', 'INVALID_ACTIVITY_KIND');
+  }
   return {
     name: text(input.name, 'nombre', 80),
+    kind: input.kind,
     description: optionalText(input.description, 'descripción', 600),
     imageAlt: optionalText(input.imageAlt, 'texto alternativo', 200),
     isPublished: input.isPublished,
@@ -276,10 +285,14 @@ export function validateQuote(input: QuoteInput, now: Date): ValidQuote {
   };
 }
 
-/** Las actividades elegidas deben existir y estar publicadas; se guardan sus nombres. */
+/**
+ * Las actividades elegidas deben existir y estar publicadas; se guardan sus nombres.
+ * En un alquiler de cancha solo se eligen juegos: la comida no se alquila por horas.
+ */
 export function chosenActivityNames(
   ids: string[],
-  found: Pick<VenueActivityProps, 'id' | 'name' | 'isPublished'>[],
+  found: Pick<VenueActivityProps, 'id' | 'name' | 'isPublished' | 'kind'>[],
+  quoteKind: QuoteKind,
 ): string[] {
   const byId = new Map(found.map((a) => [a.id, a]));
   const missing = ids.filter((id) => !byId.get(id)?.isPublished);
@@ -289,6 +302,16 @@ export function chosenActivityNames(
       'ACTIVITY_NOT_AVAILABLE',
       { activityIds: missing },
     );
+  }
+  if (quoteKind === 'COURT_RENTAL') {
+    const notGames = ids.filter((id) => byId.get(id)!.kind !== 'GAME');
+    if (notGames.length > 0) {
+      throw new BusinessRuleViolation(
+        'En un alquiler de cancha solo se eligen juegos',
+        'ACTIVITY_NOT_RENTABLE',
+        { activityIds: notGames },
+      );
+    }
   }
   return ids.map((id) => byId.get(id)!.name);
 }

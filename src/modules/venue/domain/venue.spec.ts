@@ -154,17 +154,27 @@ describe('validateQuote', () => {
 
 describe('chosenActivityNames', () => {
   const found = [
-    { id: 'a', name: 'Banquitas', isPublished: true },
-    { id: 'b', name: 'Voleibol', isPublished: false },
+    { id: 'a', name: 'Banquitas', isPublished: true, kind: 'GAME' as const },
+    { id: 'b', name: 'Voleibol', isPublished: false, kind: 'GAME' as const },
+    { id: 'c', name: 'Comida', isPublished: true, kind: 'FOOD' as const },
   ];
 
   it('copia los nombres en el orden elegido', () => {
-    expect(chosenActivityNames(['a'], found)).toEqual(['Banquitas']);
+    expect(chosenActivityNames(['c', 'a'], found, 'EVENT')).toEqual(['Comida', 'Banquitas']);
   });
 
   it('rechaza actividades no publicadas o inexistentes', () => {
-    expect(codeOf(() => chosenActivityNames(['b'], found))).toBe('ACTIVITY_NOT_AVAILABLE');
-    expect(codeOf(() => chosenActivityNames(['zzz'], found))).toBe('ACTIVITY_NOT_AVAILABLE');
+    expect(codeOf(() => chosenActivityNames(['b'], found, 'EVENT'))).toBe('ACTIVITY_NOT_AVAILABLE');
+    expect(codeOf(() => chosenActivityNames(['zzz'], found, 'EVENT'))).toBe(
+      'ACTIVITY_NOT_AVAILABLE',
+    );
+  });
+
+  it('en un alquiler de cancha solo acepta juegos', () => {
+    expect(chosenActivityNames(['a'], found, 'COURT_RENTAL')).toEqual(['Banquitas']);
+    expect(codeOf(() => chosenActivityNames(['a', 'c'], found, 'COURT_RENTAL'))).toBe(
+      'ACTIVITY_NOT_RENTABLE',
+    );
   });
 });
 
@@ -227,6 +237,7 @@ describe('ajustes y actividades', () => {
   it('una actividad necesita nombre', () => {
     const input = {
       name: ' Ping pong ',
+      kind: 'GAME' as const,
       description: '',
       imageAlt: null,
       isPublished: true,
@@ -235,5 +246,8 @@ describe('ajustes y actividades', () => {
     expect(validateActivity(input)).toMatchObject({ name: 'Ping pong', description: null });
     expect(codeOf(() => validateActivity({ ...input, name: '' }))).toBe('INVALID_FIELD');
     expect(codeOf(() => validateActivity({ ...input, sortOrder: -1 }))).toBe('INVALID_ORDER');
+    expect(codeOf(() => validateActivity({ ...input, kind: 'CANCHA' as unknown as 'GAME' }))).toBe(
+      'INVALID_ACTIVITY_KIND',
+    );
   });
 });

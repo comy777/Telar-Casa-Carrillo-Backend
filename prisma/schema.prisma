@@ -838,9 +838,17 @@ enum QuoteStatus {
 }
 
 /// Lo que se puede hacer en el lugar (comida, banquitas, ping pong...). Se edita desde el panel.
+/// Qué es cada actividad: los juegos se alquilan por horas y la comida se pide con su casilla.
+enum VenueActivityKind {
+  GAME
+  FOOD
+  OTHER
+}
+
 model VenueActivity {
-  id          String   @id @default(uuid()) @db.Uuid
+  id          String            @id @default(uuid()) @db.Uuid
   name        String
+  kind        VenueActivityKind @default(OTHER)
   description String?
   imageUrl    String?
   imageKey    String?

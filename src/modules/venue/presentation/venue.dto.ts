@@ -15,6 +15,8 @@ import {
 } from 'class-validator';
 import { PaginationQuery } from '../../../shared/presentation/pagination.dto';
 import {
+  ACTIVITY_KINDS,
+  type ActivityKind,
   MAX_QUOTE_ACTIVITIES,
   QUOTE_KINDS,
   QUOTE_STATUSES,
@@ -121,6 +123,16 @@ export class CreateVenueActivityDto {
   @MaxLength(80)
   name!: string;
 
+  @ApiPropertyOptional({
+    enum: ACTIVITY_KINDS,
+    enumName: 'VenueActivityKind',
+    default: 'OTHER',
+    description: 'GAME se alquila por horas; FOOD se pide con la casilla de comida',
+  })
+  @IsOptional()
+  @IsIn(ACTIVITY_KINDS)
+  kind?: ActivityKind;
+
   @ApiPropertyOptional({ nullable: true, type: String, maxLength: 600 })
   @IsOptional()
   @IsString()
@@ -161,6 +173,7 @@ export class VenueActivityImageDto {
 export class VenueActivityResponse {
   @ApiProperty() id!: string;
   @ApiProperty() name!: string;
+  @ApiProperty({ enum: ACTIVITY_KINDS, enumName: 'VenueActivityKind' }) kind!: ActivityKind;
   @ApiProperty({ nullable: true, type: String }) description!: string | null;
   @ApiProperty({ nullable: true, type: String }) imageUrl!: string | null;
   @ApiProperty({ nullable: true, type: String }) imageAlt!: string | null;
@@ -175,6 +188,7 @@ export class AdminVenueActivityResponse extends VenueActivityResponse {
 export const toVenueActivityResponse = (a: VenueActivityProps): VenueActivityResponse => ({
   id: a.id,
   name: a.name,
+  kind: a.kind,
   description: a.description,
   imageUrl: a.imageUrl,
   imageAlt: a.imageAlt,

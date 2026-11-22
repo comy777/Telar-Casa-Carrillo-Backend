@@ -221,11 +221,19 @@ const PRODUCTS: DemoProduct[] = [
 
 /** Actividades del lugar («Visítanos»): sin imagen; la familia sube las fotos reales. */
 const VENUE_ACTIVITIES = [
-  { name: 'Comida', description: '[DEMO] Aquí va qué se puede comer en el lugar.' },
-  { name: 'Banquitas', description: '[DEMO] Aquí va cómo es la cancha de banquitas.' },
-  { name: 'Ping pong', description: '[DEMO] Aquí va cuántas mesas hay y cómo se usan.' },
-  { name: 'Voleibol', description: '[DEMO] Aquí va cómo es la cancha de voleibol.' },
-];
+  { name: 'Comida', kind: 'FOOD', description: '[DEMO] Aquí va qué se puede comer en el lugar.' },
+  {
+    name: 'Banquitas',
+    kind: 'GAME',
+    description: '[DEMO] Aquí va cómo es la cancha de banquitas.',
+  },
+  {
+    name: 'Ping pong',
+    kind: 'GAME',
+    description: '[DEMO] Aquí va cuántas mesas hay y cómo se usan.',
+  },
+  { name: 'Voleibol', kind: 'GAME', description: '[DEMO] Aquí va cómo es la cancha de voleibol.' },
+] as const;
 
 /** Independiente de los productos: se crea aunque ya existan los demás datos de demostración. */
 async function seedVenueActivities(): Promise<void> {

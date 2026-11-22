@@ -62,6 +62,7 @@ describe('El lugar: «Visítanos», actividades y cotizaciones (e2e)', () => {
     await createActivity({ name: 'Voleibol', sortOrder: 3 });
     await createActivity({
       name: 'Banquitas',
+      kind: 'GAME',
       description: 'Fútbol en cancha pequeña',
       sortOrder: 1,
     });
@@ -90,10 +91,41 @@ describe('El lugar: «Visítanos», actividades y cotizaciones (e2e)', () => {
     expect(activities[0]).toEqual({
       id: expect.any(String) as unknown,
       name: 'Banquitas',
+      kind: 'GAME',
       description: 'Fútbol en cancha pequeña',
       imageUrl: null,
       imageAlt: null,
     });
+  });
+
+  it('un alquiler de cancha solo acepta juegos; la comida y lo demás van en eventos', async () => {
+    const comida = await createActivity({ name: 'Comida', kind: 'FOOD' });
+    const voleibol = await createActivity({ name: 'Voleibol', kind: 'GAME' });
+    const cancha = {
+      kind: 'COURT_RENTAL',
+      eventDate: colombiaDay(2),
+      startTime: '10:00',
+      durationHours: 1,
+    };
+    const rechazo = await quote({ ...cancha, activityIds: [voleibol.id, comida.id] }).expect(422);
+    expect((rechazo.body as { code: string }).code).toBe('ACTIVITY_NOT_RENTABLE');
+    await quote({ ...cancha, activityIds: [voleibol.id] }).expect(202);
+    await quote({ kind: 'GROUP_VISIT', people: 12, activityIds: [comida.id] }).expect(202);
+
+    // Sin tipo, la actividad queda como «Otra»; el panel puede cambiarla.
+    const otra = await createActivity({ name: 'Fogata' });
+    expect(otra).toMatchObject({ kind: 'OTHER' });
+    const cambiada = await http()
+      .patch(`/api/v1/admin/venue/activities/${otra.id}`)
+      .set(bearer(admin))
+      .send({ kind: 'GAME' })
+      .expect(200);
+    expect(cambiada.body).toMatchObject({ kind: 'GAME' });
+    await http()
+      .patch(`/api/v1/admin/venue/activities/${otra.id}`)
+      .set(bearer(admin))
+      .send({ kind: 'CANCHA' })
+      .expect(400);
   });
 
   it('los ajustes validan el enlace del mapa y las longitudes', async () => {
@@ -115,7 +147,7 @@ describe('El lugar: «Visítanos», actividades y cotizaciones (e2e)', () => {
     ['GROUP_VISIT', { people: 25 }],
     ['COURT_RENTAL', { eventDate: colombiaDay(1), startTime: '16:30', durationHours: 2 }],
   ])('guarda una cotización %s y envía dos correos', async (kind, fields) => {
-    const banquitas = await createActivity({ name: 'Banquitas' });
+    const banquitas = await createActivity({ name: 'Banquitas', kind: 'GAME' });
     await http()
       .put('/api/v1/admin/venue/settings')
       .set(bearer(admin))

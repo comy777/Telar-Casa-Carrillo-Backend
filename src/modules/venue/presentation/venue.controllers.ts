@@ -153,6 +153,7 @@ export class AdminVenueController {
     return toAdminVenueActivityResponse(
       await this.admin.createActivity(actorOf(user, request), {
         name: body.name,
+        kind: body.kind ?? 'OTHER',
         description: body.description ?? null,
         imageAlt: null,
         isPublished: body.isPublished ?? true,
